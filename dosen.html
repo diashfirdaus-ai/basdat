@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portal Dosen &amp; Pengawas — SQLCaseLab ITENAS</title>
+  <meta name="description" content="Dashboard Pengawas &amp; Evaluasi Asesmen Praktikum Pemrograman Database ITENAS Bandung." />
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-client.js"></script>
+  <script src="dosen.js" defer></script>
+</head>
+<body class="bg-stone-950 text-stone-100 min-h-full flex flex-col selection:bg-amber-500 selection:text-stone-950">
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- TOP NAVBAR DOSEN -->
+  <header class="border-b border-stone-800/80 bg-stone-900/95 backdrop-blur-lg sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-brand-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+          <svg class="w-5 h-5 text-stone-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="font-extrabold text-base sm:text-lg tracking-tight text-white">SQLCaseLab</h1>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase tracking-wider">
+              Portal Dosen
+            </span>
+            <span id="dosenEngineBadge" class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+              SQLite Ready
+            </span>
+          </div>
+          <p class="text-xs text-stone-400">ITENAS Bandung • Asesmen Pemrograman Database</p>
+        </div>
+      </div>
+
+      <!-- NAVBAR ACTIONS -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Logged In Dosen Info (Hidden before login) -->
+        <div id="dosenHeaderInfo" class="hidden items-center gap-2.5 bg-stone-800/80 border border-stone-700/80 rounded-xl px-3 py-1.5 text-xs">
+          <div class="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-amber-300 font-bold text-xs" id="dosenInitials">
+            D
+          </div>
+          <div class="text-xs">
+            <div class="font-semibold text-stone-100" id="headerDosenName">Dosen Pengawas</div>
+            <div class="text-amber-400 font-mono-code text-[10px]">Pengawas Aktif</div>
+          </div>
+          <button id="btnLogoutDosen" type="button" title="Keluar dari Portal Dosen" class="ml-2 p-1.5 rounded-lg bg-stone-700 hover:bg-stone-600 text-stone-300 hover:text-white transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          </button>
+        </div>
+
+        <!-- Back to Student Portal Link -->
+        <a href="index.html" class="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 hover:text-white border border-stone-700 text-xs font-semibold transition flex items-center gap-2 shadow-sm">
+          <svg class="w-4 h-4 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+          </svg>
+          <span>Halaman Mahasiswa</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- VIEW 1: DOSEN AUTHENTICATION GATE -->
+  <main id="dosenLoginView" class="flex-1 flex items-center justify-center p-4 sm:p-6">
+    <div class="max-w-md w-full bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden shadow-2xl">
+      <div class="p-6 sm:p-7 border-b border-stone-800 bg-stone-900/90">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase tracking-wider">
+            Pengawas Asesmen
+          </span>
+          <span class="text-xs text-stone-400">ITENAS Bandung</span>
+        </div>
+        <h2 class="text-xl font-bold text-white">Login Portal Dosen</h2>
+        <p class="text-xs text-stone-400 mt-1">Masukkan kredensial pengawas untuk mengakses dashboard evaluasi nilai.</p>
+      </div>
+
+      <div class="p-6 sm:p-7">
+        <form id="dosenLoginForm" class="space-y-4" novalidate>
+          <div>
+            <label for="inputDosenNama" class="block text-[11px] font-semibold uppercase tracking-wider text-stone-300 mb-1.5">
+              Nama Dosen / Pengawas <span class="text-amber-400">*</span>
+            </label>
+            <input
+              id="inputDosenNama"
+              type="text"
+              required
+              placeholder="Contoh: Dr. Ir. Budi Hartono, M.T."
+              class="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-sm text-white placeholder-stone-500 focus:outline-none focus:border-amber-500 transition"
+            />
+          </div>
+
+          <div>
+            <label for="inputDosenPassword" class="block text-[11px] font-semibold uppercase tracking-wider text-stone-300 mb-1.5">
+              Password Pengawas <span class="text-amber-400">*</span>
+            </label>
+            <div class="relative">
+              <input
+                id="inputDosenPassword"
+                type="password"
+                required
+                placeholder="Masukkan password"
+                class="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-sm text-white placeholder-stone-500 focus:outline-none focus:border-amber-500 transition pr-10 font-mono-code"
+              />
+              <button type="button" id="btnToggleDosenPassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-white transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div id="dosenLoginErrorBox" class="hidden p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-300"></div>
+
+          <div class="pt-2">
+            <button
+              type="submit"
+              id="btnSubmitDosenLogin"
+              class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-brand-600 hover:from-amber-500 hover:to-brand-500 text-white font-semibold text-sm shadow-lg shadow-amber-600/25 transition flex items-center justify-center gap-2"
+            >
+              <span>Masuk ke Dashboard Dosen</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+            </button>
+          </div>
+        </form>
+
+        <div class="mt-5 pt-3 border-t border-stone-800 text-center text-xs text-stone-400">
+          <a href="index.html" class="text-brand-400 hover:text-brand-300 font-medium">
+            &larr; Masuk sebagai Mahasiswa Praktikum
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- VIEW 2: DOSEN DASHBOARD WORKSPACE -->
+  <main id="dosenDashboardView" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-5 flex flex-col gap-4">
+    
+    <!-- DASHBOARD TOP HEADER & KPI CARDS -->
+    <section class="flex flex-col gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-stone-900 border border-stone-800 rounded-2xl p-4">
+        <div>
+          <h2 class="text-base sm:text-lg font-bold text-white">Dashboard Monitoring Asesmen SQL</h2>
+          <p class="text-xs text-stone-400 mt-0.5">Pemantauan hasil praktikum database mahasiswa, kunci jawaban resmi, dan audit log SQLite.</p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button id="btnOpenSupabaseModal" type="button" class="px-3 py-1.5 rounded-xl border text-xs font-semibold transition flex items-center gap-1.5 shadow-sm bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700">
+            <span id="supabaseStatusDot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span id="supabaseStatusText">Koneksi Cloud</span>
+          </button>
+          <button id="btnRefreshData" type="button" class="px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+            <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <span>Segarkan</span>
+          </button>
+          <button id="btnDownloadSqliteMaster" type="button" class="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold text-xs shadow transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span>Unduh .sqlite</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI METRIC CARDS -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        <div class="p-3 rounded-xl bg-stone-900 border border-stone-800 flex flex-col justify-between">
+          <span class="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">Total Peserta</span>
+          <div class="mt-1 flex items-baseline justify-between">
+            <span id="kpiTotalPeserta" class="text-2xl font-black text-white">0</span>
+            <span class="text-[10px] text-amber-300 font-mono-code">Mahasiswa</span>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-stone-900 border border-stone-800 flex flex-col justify-between">
+          <span class="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">Rata-rata Nilai</span>
+          <div class="mt-1 flex items-baseline justify-between">
+            <span id="kpiAvgScore" class="text-2xl font-black text-amber-400">0.0</span>
+            <span class="text-[10px] text-stone-500">/ 100</span>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-stone-900 border border-stone-800 flex flex-col justify-between">
+          <span class="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">Nilai Tertinggi</span>
+          <div class="mt-1">
+            <div class="flex items-baseline justify-between">
+              <span id="kpiMaxScore" class="text-2xl font-black text-emerald-400">0</span>
+              <span class="text-[10px] text-emerald-300 font-mono-code" id="kpiMaxGrade">-</span>
+            </div>
+            <div class="text-[10px] text-stone-500 truncate" id="kpiMaxStudent">-</div>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-stone-900 border border-stone-800 flex flex-col justify-between">
+          <span class="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">Nilai Terendah</span>
+          <div class="mt-1">
+            <div class="flex items-baseline justify-between">
+              <span id="kpiMinScore" class="text-2xl font-black text-rose-400">0</span>
+              <span class="text-[10px] text-rose-300 font-mono-code" id="kpiMinGrade">-</span>
+            </div>
+            <div class="text-[10px] text-stone-500 truncate" id="kpiMinStudent">-</div>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-stone-900 border border-stone-800 flex flex-col justify-between">
+          <span class="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">Kelulusan (&ge;60)</span>
+          <div class="mt-1 flex items-baseline justify-between">
+            <span id="kpiPassRate" class="text-2xl font-black text-white">0%</span>
+            <span class="text-[10px] text-stone-400" id="kpiPassCount">0 Lulus</span>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-stone-900 border border-stone-800 flex flex-col justify-between">
+          <span class="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">Auto-Submit</span>
+          <div class="mt-1 flex items-baseline justify-between">
+            <span id="kpiViolationCount" class="text-2xl font-black text-rose-400">0</span>
+            <span class="text-[10px] text-rose-300 font-mono-code">Terkunci</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- NAVIGATION TABS DOSEN -->
+    <div class="flex items-center gap-1.5 p-1 bg-stone-900 border border-stone-800 rounded-xl overflow-x-auto">
+      <button
+        id="tabBtnRekap"
+        type="button"
+        class="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition bg-amber-600 text-stone-950 font-bold shadow-sm shrink-0"
+        onclick="switchDosenTab('rekap')"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+        <span>Rekapitulasi Nilai</span>
+      </button>
+
+      <button
+        id="tabBtnAnalitik"
+        type="button"
+        class="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition text-stone-400 hover:text-white shrink-0"
+        onclick="switchDosenTab('analitik')"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        <span>Distribusi Nilai</span>
+      </button>
+
+      <button
+        id="tabBtnKunci"
+        type="button"
+        class="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition text-stone-400 hover:text-white shrink-0"
+        onclick="switchDosenTab('kunci')"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        <span>Bank Soal &amp; Kunci SQL</span>
+      </button>
+
+      <button
+        id="tabBtnConsole"
+        type="button"
+        class="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition text-stone-400 hover:text-white shrink-0"
+        onclick="switchDosenTab('console')"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <span>Konsol SQL Pengawas</span>
+      </button>
+
+      <button
+        id="tabBtnAudit"
+        type="button"
+        class="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition text-stone-400 hover:text-white shrink-0"
+        onclick="switchDosenTab('audit')"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        <span>Audit Keamanan</span>
+      </button>
+    </div>
+
+    <!-- TAB PANEL 1: REKAPITULASI NILAI MAHASISWA -->
+    <section id="panelRekap" class="flex flex-col gap-3">
+      <div class="bg-stone-900 border border-stone-800 rounded-2xl p-4 flex flex-col gap-3">
+        
+        <!-- Filter & Search Toolbar -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-stone-800">
+          <div class="flex flex-wrap items-center gap-2 flex-1 max-w-xl">
+            <div class="relative flex-1 min-w-[180px]">
+              <input
+                id="searchStudentInput"
+                type="text"
+                placeholder="Cari Nama atau NIM..."
+                class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-stone-950 border border-stone-700 text-xs text-white placeholder-stone-500 focus:outline-none focus:border-amber-500"
+              />
+              <svg class="w-3.5 h-3.5 text-stone-500 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+
+            <select
+              id="filterClassSelect"
+              class="px-2.5 py-1.5 rounded-xl bg-stone-950 border border-stone-700 text-xs text-white focus:outline-none focus:border-amber-500"
+            >
+              <option value="ALL">Semua Kelas</option>
+              <option value="Pemrograman Database - Kelas A">Kelas A</option>
+              <option value="Pemrograman Database - Kelas B">Kelas B</option>
+              <option value="Pemrograman Database - Kelas C">Kelas C</option>
+              <option value="Asesmen Pengganti / Susulan">Susulan</option>
+            </select>
+
+            <select
+              id="filterStatusSelect"
+              class="px-2.5 py-1.5 rounded-xl bg-stone-950 border border-stone-700 text-xs text-white focus:outline-none focus:border-amber-500"
+            >
+              <option value="ALL">Semua Status</option>
+              <option value="Terkumpul Final">Selesai Normal</option>
+              <option value="Auto-Submit">Terkunci Auto-Submit</option>
+            </select>
+          </div>
+
+          <!-- Export Toolbar -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="btnExportCsv" type="button" class="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <span>Export CSV</span>
+            </button>
+            <button id="btnExportJson" type="button" class="px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700 text-xs font-medium transition flex items-center gap-1.5">
+              <span>Unduh JSON</span>
+            </button>
+            <button id="btnClearAllStudents" type="button" class="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-medium transition flex items-center gap-1.5">
+              <span>Reset Data</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Student Records Table -->
+        <div class="border border-stone-800 rounded-xl overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-stone-800/80 text-stone-300 border-b border-stone-700/80">
+                <th class="py-2.5 px-3 font-semibold text-center w-10">No</th>
+                <th class="py-2.5 px-3 font-semibold">Mahasiswa</th>
+                <th class="py-2.5 px-3 font-semibold">Kelas</th>
+                <th class="py-2.5 px-3 font-semibold text-center">Nilai &amp; Grade</th>
+                <th class="py-2.5 px-3 font-semibold text-center">Soal</th>
+                <th class="py-2.5 px-3 font-semibold text-center">Durasi</th>
+                <th class="py-2.5 px-3 font-semibold">Waktu Selesai</th>
+                <th class="py-2.5 px-3 font-semibold text-center">Status</th>
+                <th class="py-2.5 px-3 font-semibold text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="studentRecordsTbody" class="divide-y divide-stone-800/80 bg-stone-950/50">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+
+        <div id="emptyStudentNotice" class="hidden p-8 text-center text-xs text-stone-500">
+          Belum ada data mahasiswa yang tersimpan di database SQLite.
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB PANEL 2: DISTRIBUSI NILAI & ANALITIK KELAS -->
+    <section id="panelAnalitik" class="hidden flex flex-col gap-3">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
+        <!-- Grade Distribution Chart -->
+        <div class="lg:col-span-7 bg-stone-900 border border-stone-800 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-white mb-1">Distribusi Nilai Huruf (Grade A - E)</h3>
+            <p class="text-[11px] text-stone-400 mb-4">Sebaran persentase kelulusan berdasarkan skor asesmen 0 - 100.</p>
+            <div id="gradeDistributionBars" class="space-y-2.5">
+              <!-- Dynamically generated bars -->
+            </div>
+          </div>
+          <div class="pt-4 mt-4 border-t border-stone-800 text-[11px] text-stone-400 flex items-center justify-between">
+            <span>Standar Kelulusan: Nilai &ge; 60 (Grade C ke atas)</span>
+            <span id="passSummaryText" class="font-semibold text-emerald-400">-</span>
+          </div>
+        </div>
+
+        <!-- Class Performance Comparison -->
+        <div class="lg:col-span-5 bg-stone-900 border border-stone-800 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-white mb-1">Rata-rata Nilai Per Kelas</h3>
+            <p class="text-[11px] text-stone-400 mb-4">Perbandingan rata-rata pencapaian skor per sesi praktikum.</p>
+            <div id="classAverageList" class="space-y-2.5">
+              <!-- Dynamically generated class cards -->
+            </div>
+          </div>
+          <div class="pt-3 mt-3 border-t border-stone-800 text-[11px] text-stone-500">
+            Sumber Data: Database SQLite peserta_asesmen
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB PANEL 3: BANK SOAL & KUNCI JAWABAN LENGKAP -->
+    <section id="panelKunci" class="hidden flex flex-col gap-3">
+      <div class="bg-stone-900 border border-stone-800 rounded-2xl p-4 sm:p-5">
+        <div class="mb-3 pb-3 border-b border-stone-800 flex items-center justify-between">
+          <div>
+            <h3 class="text-xs font-bold text-white uppercase tracking-wider">Kunci Solusi Resmi Studi Kasus Pemrograman Database</h3>
+            <p class="text-[11px] text-stone-400 mt-0.5">Solusi query SQL referensi sistem untuk Soal 1 s/d 6.</p>
+          </div>
+          <span class="text-xs font-mono-code px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold">
+            Total 100 Poin
+          </span>
+        </div>
+
+        <div id="dosenQuestionsList" class="space-y-3">
+          <!-- Dynamically populated with official solution queries -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB PANEL 4: KONSOL SQL PENGAWAS -->
+    <section id="panelConsole" class="hidden flex flex-col gap-3">
+      <div class="bg-stone-900 border border-stone-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300">Konsol Query SQL Dosen</h3>
+            <p class="text-[11px] text-stone-400">Eksekusi query analitis pada database SQLite untuk memeriksa data tabel.</p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-1.5">
+            <button type="button" data-dosen-sql="SELECT * FROM peserta_asesmen;" class="sql-dosen-snippet px-2 py-1 rounded bg-stone-800 hover:bg-stone-700 text-[11px] font-mono-code text-amber-300 border border-stone-700 transition">peserta_asesmen</button>
+            <button type="button" data-dosen-sql="SELECT * FROM log_aktivitas ORDER BY id DESC LIMIT 20;" class="sql-dosen-snippet px-2 py-1 rounded bg-stone-800 hover:bg-stone-700 text-[11px] font-mono-code text-amber-300 border border-stone-700 transition">log_aktivitas</button>
+            <button type="button" data-dosen-sql="SELECT * FROM riwayat_jawaban ORDER BY id DESC LIMIT 20;" class="sql-dosen-snippet px-2 py-1 rounded bg-stone-800 hover:bg-stone-700 text-[11px] font-mono-code text-amber-300 border border-stone-700 transition">riwayat_jawaban</button>
+            <button type="button" data-dosen-sql="SELECT * FROM dokter;" class="sql-dosen-snippet px-2 py-1 rounded bg-stone-800 hover:bg-stone-700 text-[11px] font-mono-code text-emerald-300 border border-stone-700 transition">dokter</button>
+            <button type="button" data-dosen-sql="SELECT * FROM pasien;" class="sql-dosen-snippet px-2 py-1 rounded bg-stone-800 hover:bg-stone-700 text-[11px] font-mono-code text-emerald-300 border border-stone-700 transition">pasien</button>
+            <button type="button" data-dosen-sql="SELECT * FROM kunjungan;" class="sql-dosen-snippet px-2 py-1 rounded bg-stone-800 hover:bg-stone-700 text-[11px] font-mono-code text-emerald-300 border border-stone-700 transition">kunjungan</button>
+            <button type="button" id="btnClearDosenSql" class="px-2 py-1 rounded bg-stone-800 hover:bg-stone-700 text-[11px] text-stone-300 border border-stone-700 transition">Bersihkan</button>
+          </div>
+        </div>
+
+        <div class="relative">
+          <textarea
+            id="dosenSqlTextarea"
+            rows="5"
+            spellcheck="false"
+            placeholder="-- Tuliskan query SQL di sini..."
+            class="w-full p-3 rounded-xl bg-stone-950 border border-stone-700 font-mono-code text-xs text-amber-300 placeholder-stone-600 focus:outline-none focus:border-amber-500 leading-relaxed resize-y"
+          ></textarea>
+        </div>
+
+        <div class="flex items-center justify-between gap-2">
+          <button
+            id="btnRunDosenQuery"
+            type="button"
+            class="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold text-xs shadow transition flex items-center gap-1.5"
+          >
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>
+            <span>Eksekusi Query</span>
+          </button>
+          <span id="dosenQueryMetaBadge" class="text-[11px] text-stone-500 font-mono-code">Siap</span>
+        </div>
+
+        <div class="mt-1">
+          <div id="dosenQueryResultContainer" class="min-h-[140px] max-h-[360px] overflow-auto rounded-xl bg-stone-950 border border-stone-800 p-3 flex items-center justify-center text-xs text-stone-500">
+            Jalankan query SQL untuk melihat hasil query dari database SQLite.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB PANEL 5: AUDIT TRAIL KEAMANAN UJIAN -->
+    <section id="panelAudit" class="hidden flex flex-col gap-3">
+      <div class="bg-stone-900 border border-stone-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-stone-800">
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-white">Log Aktivitas &amp; Keamanan Real-Time</h3>
+            <p class="text-[11px] text-stone-400 mt-0.5">Catatan audit login, submission jawaban, dan deteksi pelanggaran pindah tab (Auto-Submit).</p>
+          </div>
+          <button id="btnRefreshAudit" type="button" class="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-medium border border-stone-700 transition">
+            Segarkan Audit
+          </button>
+        </div>
+
+        <div class="border border-stone-800 rounded-xl overflow-x-auto max-h-[460px]">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="sticky top-0 bg-stone-800 text-stone-300">
+              <tr>
+                <th class="py-2.5 px-3 font-semibold w-12 text-center">ID</th>
+                <th class="py-2.5 px-3 font-semibold">Waktu</th>
+                <th class="py-2.5 px-3 font-semibold">Identitas / NRP</th>
+                <th class="py-2.5 px-3 font-semibold">Role</th>
+                <th class="py-2.5 px-3 font-semibold">Aksi</th>
+                <th class="py-2.5 px-3 font-semibold">Keterangan</th>
+              </tr>
+            </thead>
+            <tbody id="auditLogsTbody" class="divide-y divide-stone-800 bg-stone-950/70">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL 1: LEMBAR JAWABAN MAHASISWA -->
+  <div id="studentDetailModal" class="hidden fixed inset-0 z-50 bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-stone-900 border border-stone-700 rounded-2xl max-w-3xl w-full p-5 sm:p-6 shadow-2xl my-8 max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b border-stone-800">
+        <div>
+          <h2 class="text-base font-bold text-white">Lembar Jawaban Asesmen</h2>
+          <p class="text-xs text-stone-400" id="detailModalSubtitle">Review pengerjaan studi kasus mahasiswa.</p>
+        </div>
+        <button id="btnCloseDetailModal" type="button" class="p-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs">
+          &times;
+        </button>
+      </div>
+
+      <div class="overflow-y-auto py-3 space-y-3 flex-1 pr-1" id="detailModalContent">
+        <!-- Student Metadata Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div class="p-2.5 rounded-xl bg-stone-950 border border-stone-800">
+            <span class="text-[10px] text-stone-400 uppercase tracking-wider block">Mahasiswa</span>
+            <div id="detailNama" class="font-bold text-white text-xs mt-0.5 truncate">-</div>
+            <div id="detailNrp" class="font-mono-code text-[11px] text-amber-300 mt-0.5">-</div>
+          </div>
+          <div class="p-2.5 rounded-xl bg-stone-950 border border-stone-800">
+            <span class="text-[10px] text-stone-400 uppercase tracking-wider block">Kelas</span>
+            <div id="detailKelas" class="font-semibold text-stone-200 text-xs mt-0.5 truncate">-</div>
+            <div id="detailDuration" class="text-[10px] text-stone-400 font-mono-code mt-0.5">-</div>
+          </div>
+          <div class="p-2.5 rounded-xl bg-stone-950 border border-stone-800">
+            <span class="text-[10px] text-stone-400 uppercase tracking-wider block">Nilai Akhir</span>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <span id="detailScore" class="text-base font-extrabold text-amber-400">-</span>
+              <span id="detailGrade" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">-</span>
+            </div>
+            <div id="detailSolved" class="text-[10px] text-stone-400 mt-0.5">-</div>
+          </div>
+          <div class="p-2.5 rounded-xl bg-stone-950 border border-stone-800">
+            <span class="text-[10px] text-stone-400 uppercase tracking-wider block">Status</span>
+            <div id="detailStatus" class="font-semibold text-xs mt-0.5 text-stone-200">-</div>
+            <div id="detailTime" class="text-[10px] text-stone-500 mt-0.5 truncate">-</div>
+          </div>
+        </div>
+
+        <!-- Per Question Submissions -->
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-stone-300 mb-2">Jawaban Per Soal (1 - 6):</h3>
+          <div id="detailQuestionsList" class="space-y-2.5">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-stone-800 flex items-center justify-between">
+        <button id="btnExportSingleStudent" type="button" class="px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-medium border border-stone-700 transition">
+          Salin Teks Jawaban
+        </button>
+        <button id="btnCloseDetailModalBottom" type="button" class="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold text-xs transition">
+          Tutup
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: KONFIRMASI BUKA KUNCI (REMEDIAL) -->
+  <div id="unlockConfirmModal" class="hidden fixed inset-0 z-50 bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-stone-900 border border-stone-700 rounded-2xl max-w-sm w-full p-5 shadow-2xl">
+      <div class="flex items-center gap-2.5 mb-2.5">
+        <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-white">Buka Kunci NIM (Remedial)</h3>
+          <p class="text-[11px] text-stone-400" id="unlockStudentTarget">-</p>
+        </div>
+      </div>
+      <p class="text-xs text-stone-300 leading-relaxed mb-4">
+        Tindakan ini akan <strong>menghapus kuncian pengerjaan</strong> mahasiswa dari database SQLite sehingga mahasiswa dapat login dan mengulang asesmen praktikum.
+      </p>
+      <div class="flex items-center justify-end gap-2">
+        <button id="btnCancelUnlock" type="button" class="px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-medium">
+          Batal
+        </button>
+        <button id="btnConfirmUnlock" type="button" class="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-stone-950 text-xs font-bold shadow">
+          Buka Kunci
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: KONFIRMASI HAPUS SATU MAHASISWA -->
+  <div id="deleteStudentConfirmModal" class="hidden fixed inset-0 z-50 bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-stone-900 border border-stone-700 rounded-2xl max-w-sm w-full p-5 shadow-2xl">
+      <h3 class="text-sm font-bold text-white mb-1">Hapus Data Mahasiswa</h3>
+      <p class="text-xs text-stone-300 mb-3" id="deleteStudentTargetText">Hapus data mahasiswa ini dari database?</p>
+      <div class="flex items-center justify-end gap-2">
+        <button id="btnCancelDeleteStudent" type="button" class="px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-medium">
+          Batal
+        </button>
+        <button id="btnConfirmDeleteStudent" type="button" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold">
+          Hapus
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: KONFIRMASI RESET SEMUA DATA -->
+  <div id="clearAllConfirmModal" class="hidden fixed inset-0 z-50 bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-stone-900 border border-stone-700 rounded-2xl max-w-sm w-full p-5 shadow-2xl">
+      <h3 class="text-sm font-bold text-white mb-1">Reset Seluruh Data Asesmen?</h3>
+      <p class="text-xs text-stone-300 leading-relaxed mb-4">
+        Semua riwayat nilai peserta, lembar jawaban, dan log aktivitas akan dibersihkan dari database SQLite.
+      </p>
+      <div class="flex items-center justify-end gap-2">
+        <button id="btnCancelClearAll" type="button" class="px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-medium">
+          Batal
+        </button>
+        <button id="btnConfirmClearAll" type="button" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold">
+          Ya, Reset Semua
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: KONFIGURASI SUPABASE CLOUD REAL-TIME -->
+  <div id="supabaseConfigModal" class="hidden fixed inset-0 z-50 bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-stone-900 border border-stone-700 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl flex flex-col gap-4">
+      <div class="flex items-center justify-between border-b border-stone-800 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+          <h3 class="text-sm sm:text-base font-bold text-white">Integrasi Cloud Supabase (Real-Time)</h3>
+        </div>
+        <button id="btnCloseSupabaseModal" type="button" class="text-stone-400 hover:text-white p-1 rounded-lg text-lg leading-none">&times;</button>
+      </div>
+
+      <p class="text-xs text-stone-300 leading-relaxed">
+        Hubungkan dashboard pengawas dosen ke database Supabase agar lembar jawaban dan nilai dari seluruh laptop mahasiswa otomatis masuk secara real-time.
+      </p>
+
+      <form id="supabaseConfigForm" class="space-y-3">
+        <div>
+          <label for="inputSupabaseUrl" class="block text-[11px] font-semibold text-stone-300 uppercase tracking-wider mb-1">
+            Project URL <span class="text-amber-400">*</span>
+          </label>
+          <input
+            id="inputSupabaseUrl"
+            type="url"
+            required
+            placeholder="https://xxxxxxxxxxxxxxxxxxxx.supabase.co"
+            class="w-full px-3 py-2 rounded-xl bg-stone-950 border border-stone-700 text-xs text-white placeholder-stone-600 focus:outline-none focus:border-amber-500 font-mono-code"
+          />
+        </div>
+
+        <div>
+          <label for="inputSupabaseAnonKey" class="block text-[11px] font-semibold text-stone-300 uppercase tracking-wider mb-1">
+            Anon Public Key <span class="text-amber-400">*</span>
+          </label>
+          <input
+            id="inputSupabaseAnonKey"
+            type="password"
+            required
+            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            class="w-full px-3 py-2 rounded-xl bg-stone-950 border border-stone-700 text-xs text-white placeholder-stone-600 focus:outline-none focus:border-amber-500 font-mono-code"
+          />
+        </div>
+
+        <div class="p-3 rounded-xl bg-stone-950 border border-stone-800 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold text-amber-300">Script SQL Tabel Supabase (One-Click)</span>
+            <button id="btnCopySupabaseSql" type="button" class="text-[10px] px-2 py-0.5 rounded bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700 transition">
+              Salin Script SQL
+            </button>
+          </div>
+          <p class="text-[11px] text-stone-400 leading-normal">
+            Buka menu <strong>SQL Editor</strong> di dashboard Supabase Anda, lalu *paste* dan klik *Run* untuk membuat tabel <code class="text-amber-300">peserta_asesmen</code> dan RLS secara otomatis.
+          </p>
+        </div>
+
+        <div class="flex items-center justify-between pt-2">
+          <button id="btnClearSupabaseConfig" type="button" class="text-xs text-stone-500 hover:text-rose-400 transition">
+            Hapus Konfigurasi
+          </button>
+          <div class="flex items-center gap-2">
+            <button id="btnCancelSupabaseModal" type="button" class="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-medium">
+              Batal
+            </button>
+            <button id="btnSaveSupabaseConfig" type="submit" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-stone-950 text-xs font-bold transition">
+              Simpan &amp; Hubungkan
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</body>
+</html>

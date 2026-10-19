@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SQLCaseLab — Sistem Asesmen Praktikum Pemrograman Database</title>
+  <meta name="description" content="Sistem asesmen praktikum pemrograman database dengan studi kasus ERD, TRD, DDL, dan DML berbasis SQL interaktif." />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-client.js"></script>
+  <script src="app.js"></script>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-stone-950 text-stone-100 min-h-full flex flex-col selection:bg-brand-500 selection:text-white">
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- TOP NAVBAR -->
+  <header class="border-b border-stone-800/80 bg-stone-900/95 backdrop-blur-lg sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-amber-500 flex items-center justify-center shadow-lg shadow-brand-500/30 orange-pulse">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="font-extrabold text-base sm:text-lg tracking-tight text-white">SQLCaseLab</h1>
+            <span id="engineBadge" class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+              SQL Engine Ready
+            </span>
+            <span id="roleBadge" class="hidden text-[11px] font-semibold px-2.5 py-0.5 rounded-full"></span>
+            <span id="proctorBadge" class="hidden sm:hidden items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
+              <span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping"></span>
+              Anti-Cheat: Buka Tab Lain = Auto-Submit
+            </span>
+          </div>
+          <p class="text-xs text-stone-400">Asesmen Studi Kasus: ERD, TRD, DDL (CREATE & ALTER) & DML (INSERT & DELETE)</p>
+        </div>
+      </div>
+
+      <!-- STUDENT INFO BAR (HIDDEN BEFORE LOGIN) -->
+      <div id="studentHeaderBar" class="hidden items-center flex-wrap gap-2 sm:gap-4">
+        <div class="flex items-center gap-2.5 bg-stone-800/80 border border-stone-700/80 rounded-xl px-3 py-1.5">
+          <div class="w-7 h-7 rounded-lg bg-brand-500/20 border border-brand-400/30 flex items-center justify-center text-brand-300 font-bold text-xs" id="studentInitials">
+            M
+          </div>
+          <div class="text-xs">
+            <div class="font-semibold text-stone-100" id="headerStudentName">-</div>
+            <div class="text-stone-400 font-mono-code text-[11px]" id="headerStudentNrp">NRP: -</div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 bg-stone-800/80 border border-stone-700/80 rounded-xl px-3 py-1.5 text-xs">
+          <div>
+            <span class="text-stone-400 block text-[10px] uppercase tracking-wider">Durasi</span>
+            <span id="examTimer" class="font-mono-code font-semibold text-amber-300">00:00</span>
+          </div>
+          <div class="h-6 w-px bg-stone-700"></div>
+          <div>
+            <span class="text-stone-400 block text-[10px] uppercase tracking-wider">Terjawab</span>
+            <span id="headerProgressText" class="font-semibold text-white">0 / 6</span>
+          </div>
+          <div class="h-6 w-px bg-stone-700"></div>
+          <div>
+            <span class="text-stone-400 block text-[10px] uppercase tracking-wider">Skor</span>
+            <span id="headerScoreText" class="font-bold text-emerald-400">0 / 100</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button id="btnOpenSummary" type="button" class="px-3 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs transition flex items-center gap-1.5 shadow-lg shadow-brand-600/25">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>Rekap & Kumpulkan</span>
+          </button>
+          <button id="btnLogoutStudent" type="button" title="Ganti Mahasiswa / Reset Sesi" class="p-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700 text-xs transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            </svg>
+          </button>
+      <!-- NAV ACTIONS BEFORE LOGIN / MAHASISWA -->
+      <div id="guestHeaderActions" class="flex items-center gap-2">
+        <a href="dosen.html" id="linkToDosenPage" class="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 hover:text-white border border-stone-700 hover:border-amber-500/40 text-xs font-semibold transition flex items-center gap-2 shadow-sm group">
+          <svg class="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+          <span>Portal Dosen / Pengawas &rarr;</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- VIEW 1: LOGIN / IDENTITAS GATE -->
+  <!-- VIEW 1: LOGIN / IDENTITAS MAHASISWA -->
+  <main id="loginView" class="flex-1 flex items-center justify-center p-4 sm:p-6">
+    <div class="max-w-3xl w-full grid grid-cols-1 lg:grid-cols-12 bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden shadow-2xl">
+      
+      <!-- Left Column: Overview & Rules -->
+      <div class="lg:col-span-5 p-6 sm:p-7 bg-stone-900/90 border-b lg:border-b-0 lg:border-r border-stone-800 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center gap-2 mb-3">
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-brand-500/15 text-brand-300 border border-brand-500/30 uppercase tracking-wider">
+              ITENAS Bandung
+            </span>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-extrabold text-white leading-tight mb-2">
+            Asesmen Pemrograman Database
+          </h2>
+          <p class="text-xs text-stone-400 leading-relaxed mb-6">
+            Evaluasi praktikum studi kasus basis data relasional: perancangan ERD/TRD, DDL (CREATE &amp; ALTER), serta manipulasi DML (INSERT &amp; DELETE).
+          </p>
+
+          <div class="space-y-2.5 text-xs text-stone-300">
+            <div class="p-2.5 rounded-xl bg-stone-950/60 border border-stone-800 flex items-center gap-2.5">
+              <span class="w-6 h-6 rounded-lg bg-amber-500/15 text-amber-400 font-bold flex items-center justify-center text-[11px] shrink-0">6</span>
+              <span><strong>6 Tahapan Soal</strong> (ERD, TRD, DDL, DML)</span>
+            </div>
+            <div class="p-2.5 rounded-xl bg-stone-950/60 border border-stone-800 flex items-center gap-2.5">
+              <span class="w-6 h-6 rounded-lg bg-emerald-500/15 text-emerald-400 font-bold flex items-center justify-center text-[11px] shrink-0">100</span>
+              <span><strong>Total Bobot:</strong> 100 Poin</span>
+            </div>
+            <div class="p-2.5 rounded-xl bg-stone-950/60 border border-stone-800 flex items-center gap-2.5">
+              <span class="w-6 h-6 rounded-lg bg-rose-500/15 text-rose-400 font-bold flex items-center justify-center text-[11px] shrink-0">1x</span>
+              <span><strong>Kesempatan:</strong> 1x Pengerjaan</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-stone-800/80 text-[11px] text-stone-500 flex items-center justify-between">
+          <span>Studi Kasus: Klinik SehatKampus</span>
+        </div>
+      </div>
+
+      <!-- Right Column: Mahasiswa Form -->
+      <div class="lg:col-span-7 p-6 sm:p-7 flex flex-col justify-center">
+        <div class="mb-5 flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-bold text-white">Identitas Mahasiswa</h3>
+            <p class="text-xs text-stone-400 mt-0.5">Lengkapi identitas untuk memulai sesi ujian.</p>
+          </div>
+          <a href="dosen.html" class="text-xs text-amber-400 hover:text-amber-300 transition font-medium flex items-center gap-1">
+            <span>Portal Dosen</span> &rarr;
+          </a>
+        </div>
+
+        <form id="studentLoginForm" class="space-y-3.5" novalidate>
+          <div>
+            <label for="inputNama" class="block text-[11px] font-semibold uppercase tracking-wider text-stone-300 mb-1">
+              Nama Lengkap Mahasiswa <span class="text-rose-400">*</span>
+            </label>
+            <input
+              id="inputNama"
+              type="text"
+              required
+              placeholder="Masukkan nama lengkap"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-sm text-white placeholder-stone-500 focus:outline-none focus:border-brand-500 transition"
+            />
+          </div>
+
+          <div>
+            <label for="inputNrp" class="block text-[11px] font-semibold uppercase tracking-wider text-stone-300 mb-1">
+              NIM / NRP Mahasiswa <span class="text-rose-400">*</span>
+            </label>
+            <input
+              id="inputNrp"
+              type="text"
+              required
+              placeholder="Contoh: 152022001"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-sm font-mono-code text-white placeholder-stone-500 focus:outline-none focus:border-brand-500 transition"
+            />
+          </div>
+
+          <div>
+            <label for="inputKelas" class="block text-[11px] font-semibold uppercase tracking-wider text-stone-300 mb-1">
+              Kelas Praktikum
+            </label>
+            <select
+              id="inputKelas"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-sm text-white focus:outline-none focus:border-brand-500 transition"
+            >
+              <option value="Pemrograman Database - Kelas A">Pemrograman Database - Kelas A</option>
+              <option value="Pemrograman Database - Kelas B">Pemrograman Database - Kelas B</option>
+              <option value="Pemrograman Database - Kelas C">Pemrograman Database - Kelas C</option>
+              <option value="Asesmen Pengganti / Susulan">Asesmen Pengganti / Susulan</option>
+            </select>
+          </div>
+
+          <div id="loginErrorBox" class="hidden p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-300"></div>
+
+          <div class="pt-2">
+            <button
+              type="submit"
+              id="btnStartExam"
+              class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-brand-600 to-amber-600 hover:from-brand-500 hover:to-amber-500 text-white font-semibold text-sm shadow-lg shadow-brand-600/25 transition flex items-center justify-center gap-2"
+            >
+              <span id="loginBtnText">Mulai Ujian Praktikum</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+            </button>
+          </div>
+        </form>
+
+        <div class="mt-4 pt-3 border-t border-stone-800 text-[11px] text-stone-400 flex items-start gap-2">
+          <svg class="w-4 h-4 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <span><strong>Integritas Ujian:</strong> Selama ujian, meninggalkan halaman atau berpindah tab akan memicu <em>Auto-Submit</em> otomatis.</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- VIEW 2: MAIN ASSESSMENT WORKSPACE -->
+  <main id="examWorkspaceView" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+    
+    <!-- LEFT SIDEBAR: QUESTION LIST & SCHEMA EXPLORER (5 cols on lg) -->
+    <section class="lg:col-span-5 flex flex-col gap-4">
+      
+      <!-- Sidebar Mode Tabs -->
+      <div class="bg-stone-900 border border-stone-800 rounded-2xl p-1.5 flex gap-1">
+        <button id="tabBtnQuestions" type="button" class="flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition bg-brand-600 text-white shadow">
+          Daftar Soal (6)
+        </button>
+        <button id="tabBtnSchema" type="button" class="flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition text-stone-400 hover:text-white">
+          Skema & ERD Tabel
+        </button>
+        <button id="tabBtnDataPreview" type="button" class="flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition text-stone-400 hover:text-white">
+          Isi Tabel Live
+        </button>
+      </div>
+
+      <!-- TAB PANEL 1: DAFTAR SOAL STUDI KASUS -->
+      <div id="panelQuestionsList" class="bg-stone-900 border border-stone-800 rounded-2xl p-4 flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-stone-400">Pilih Soal Studi Kasus</h2>
+          <span class="text-[11px] text-stone-400">Klik soal untuk berpindah</span>
+        </div>
+        <div id="questionCardsContainer" class="space-y-2.5"></div>
+      </div>
+
+      <!-- TAB PANEL 2: SKEMA & ERD TABEL -->
+      <div id="panelSchemaExplorer" class="hidden bg-stone-900 border border-stone-800 rounded-2xl p-4 flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-stone-300">Diagram ERD & TRD — Klinik SehatKampus</h2>
+            <p class="text-[11px] text-stone-400 mt-0.5">Klik nama kolom untuk menyisipkan ke Editor SQL</p>
+          </div>
+          <button id="btnResetDbFromSchema" type="button" class="text-[11px] px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-amber-300 border border-stone-700 transition">
+            Reset Data Awal
+          </button>
+        </div>
+        <div id="schemaTablesList" class="space-y-3 max-h-[540px] overflow-y-auto pr-1"></div>
+      </div>
+
+      <!-- TAB PANEL 3: ISI TABEL LIVE -->
+      <div id="panelDataPreview" class="hidden bg-stone-900 border border-stone-800 rounded-2xl p-4 flex flex-col gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-stone-300">Inspeksi Isi Tabel</h2>
+          <select id="selectPreviewTable" class="px-2.5 py-1.5 rounded-lg bg-stone-950 border border-stone-700 text-xs text-white font-mono-code">
+            <option value="dokter">dokter (TRD Master)</option>
+            <option value="pasien">pasien (TRD Master)</option>
+            <option value="kunjungan">kunjungan (TRD Transaksi)</option>
+            <option value="peserta_asesmen" class="dosen-only-feature">peserta_asesmen (SQLite DB)</option>
+            <option value="riwayat_jawaban" class="dosen-only-feature">riwayat_jawaban (SQLite DB)</option>
+            <option value="log_aktivitas" class="dosen-only-feature">log_aktivitas (SQLite DB)</option>
+          </select>
+        </div>
+        <div id="liveTablePreviewContainer" class="overflow-x-auto max-h-[500px] border border-stone-800 rounded-xl"></div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT WORKSPACE: ACTIVE CASE STUDY + SQL EDITOR + LIVE RESULT (7 cols on lg) -->
+    <section class="lg:col-span-7 flex flex-col gap-4">
+      
+      <!-- Active Case Study Problem Card -->
+      <div class="bg-stone-900 border border-stone-800 rounded-2xl p-4 sm:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2">
+            <span id="activeQuestionNumberBadge" class="px-2.5 py-1 rounded-lg bg-brand-500/20 text-brand-300 border border-brand-500/30 font-bold text-xs">
+              Soal #1
+            </span>
+            <span id="activeQuestionLevelBadge" class="px-2.5 py-1 rounded-lg bg-stone-800 text-stone-300 text-xs font-medium">
+              Basic Filtering
+            </span>
+            <span id="activeQuestionPointsBadge" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-xs font-semibold">
+              15 Poin
+            </span>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <button id="btnPrevQuestion" type="button" class="px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs border border-stone-700 transition">
+              &larr; Sebelumnya
+            </button>
+            <button id="btnNextQuestion" type="button" class="px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs border border-stone-700 transition">
+              Selanjutnya &rarr;
+            </button>
+          </div>
+        </div>
+
+        <h2 id="activeQuestionTitle" class="text-base sm:text-lg font-bold text-white mb-2">
+          Judul Studi Kasus
+        </h2>
+
+        <!-- Business Case Context -->
+        <div class="p-3.5 rounded-xl bg-stone-950/90 border border-stone-800 mb-3">
+          <div class="text-[11px] font-semibold uppercase tracking-wider text-brand-400 mb-1">Konteks Studi Kasus</div>
+          <p id="activeQuestionScenario" class="text-xs sm:text-sm text-stone-300 leading-relaxed"></p>
+        </div>
+
+        <!-- Technical Task Instruction -->
+        <div class="p-3.5 rounded-xl bg-brand-950/30 border border-brand-500/30">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-amber-300">Instruksi Query SQL</span>
+            <!-- Hint toggle: DOSEN ONLY -->
+            <button id="btnToggleHint" type="button" class="dosen-only-feature text-xs text-amber-300 hover:text-amber-200 underline font-medium hidden">
+              Tampilkan Petunjuk (Hint)
+            </button>
+          </div>
+          <p id="activeQuestionInstruction" class="text-xs sm:text-sm text-stone-100 leading-relaxed"></p>
+          <div id="activeQuestionExpectedCols" class="mt-2.5 flex flex-wrap items-center gap-1.5"></div>
+        </div>
+
+        <!-- Collapsible Hint Box (DOSEN ONLY) -->
+        <div id="activeQuestionHintBox" class="hidden mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 font-mono-code"></div>
+      </div>
+
+      <!-- INTERACTIVE ERD & TRD DESIGNER CARD (DRAG AND DROP WORKSPACE) -->
+      <div id="visualDesignBuilderCard" class="hidden bg-stone-900 border border-brand-500/40 rounded-2xl p-4 sm:p-5 flex flex-col gap-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-800 pb-3">
+          <div>
+            <span id="designBuilderPhaseBadge" class="text-[11px] font-bold uppercase tracking-wider text-brand-400 block">Workspace Drag &amp; Drop</span>
+            <h3 id="designBuilderTitle" class="text-sm sm:text-base font-bold text-white mt-0.5">Perancangan Diagram Interaktif</h3>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" id="btnResetDesignForm" class="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-xs text-stone-300 hover:text-white border border-stone-700 transition flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              <span>Reset Kanvas</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- PANEL SOAL 1: DRAG & DROP ERD BUILDER -->
+        <div id="erdBuilderPanel" class="space-y-4">
+          <!-- Palette of Draggable Items -->
+          <div class="p-3.5 rounded-xl bg-stone-950 border border-stone-800 space-y-2.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-stone-300 uppercase tracking-wider text-[11px]">Palet Komponen ERD</span>
+              <span class="text-[10px] text-stone-500">Tarik (drag) atau klik item ke slot target di bawah</span>
+            </div>
+            <div id="erdPaletteContainer" class="flex flex-wrap gap-2">
+              <!-- Draggable chips rendered dynamically or pre-defined -->
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-brand-500/50 text-brand-300 font-mono-code text-xs font-bold shadow-sm" data-type="entity" data-val="DOKTER">🏢 DOKTER</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-amber-500/50 text-amber-300 font-mono-code text-xs font-bold shadow-sm" data-type="entity" data-val="KUNJUNGAN">📋 KUNJUNGAN</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-brand-500/50 text-brand-300 font-mono-code text-xs font-bold shadow-sm" data-type="entity" data-val="PASIEN">👤 PASIEN</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900/60 hover:bg-stone-800 border border-stone-700 text-stone-400 font-mono-code text-xs" data-type="entity" data-val="OBAT">💊 OBAT</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900/60 hover:bg-stone-800 border border-stone-700 text-stone-400 font-mono-code text-xs" data-type="entity" data-val="KASIR">🛒 KASIR</div>
+
+              <div class="h-6 w-px bg-stone-800 my-auto hidden sm:block"></div>
+
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-amber-500/40 text-amber-300 font-mono-code text-xs" data-type="pk" data-val="id_dokter">🔑 id_dokter</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-amber-500/40 text-amber-300 font-mono-code text-xs" data-type="pk" data-val="id_pasien">🔑 id_pasien</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900/60 hover:bg-stone-800 border border-stone-700 text-stone-400 font-mono-code text-xs" data-type="pk" data-val="id_obat">🔑 id_obat</div>
+
+              <div class="h-6 w-px bg-stone-800 my-auto hidden sm:block"></div>
+
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-stone-700 hover:border-stone-500 text-stone-200 font-mono-code text-xs" data-type="attr" data-val="nama_dokter, spesialis">nama_dokter, spesialis</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-stone-700 hover:border-stone-500 text-stone-200 font-mono-code text-xs" data-type="attr" data-val="nama_pasien, tgl_lahir">nama_pasien, tgl_lahir</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-stone-700 hover:border-stone-500 text-stone-200 font-mono-code text-xs" data-type="attr" data-val="id_kunjungan (PK), tgl_kunjungan, diagnosa">id_kunjungan (PK), tgl_kunjungan, diagnosa</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900/60 hover:bg-stone-800 border border-stone-700 text-stone-400 font-mono-code text-xs" data-type="attr" data-val="harga_obat, stok">harga_obat, stok</div>
+
+              <div class="h-6 w-px bg-stone-800 my-auto hidden sm:block"></div>
+
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-amber-300 font-mono-code text-xs font-bold" data-type="cardinality" data-val="1:N">⟷ 1 : N</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900/60 hover:bg-stone-800 border border-stone-700 text-stone-400 font-mono-code text-xs" data-type="cardinality" data-val="1:1">⟷ 1 : 1</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900/60 hover:bg-stone-800 border border-stone-700 text-stone-400 font-mono-code text-xs" data-type="cardinality" data-val="M:N">⟷ M : N</div>
+            </div>
+          </div>
+
+          <!-- Drop Targets Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <!-- Box Entitas 1 -->
+            <div class="p-3.5 rounded-xl bg-stone-950 border border-stone-800 flex flex-col gap-2.5">
+              <div class="text-xs font-bold text-brand-300 flex items-center justify-between">
+                <span>1. Entitas Master #1</span>
+                <span class="text-[10px] text-stone-500">Sisi 1</span>
+              </div>
+              <div>
+                <span class="text-[10px] text-stone-400 block mb-1">Nama Entitas:</span>
+                <div class="drop-slot rounded-lg p-2 flex items-center justify-center text-xs font-mono-code text-stone-500" data-slot="ent1Name" data-accept="entity">
+                  <span class="placeholder-text">Drop Entitas di sini</span>
+                </div>
+              </div>
+              <div>
+                <span class="text-[10px] text-stone-400 block mb-1">Key Atribut (Primary Key):</span>
+                <div class="drop-slot rounded-lg p-2 flex items-center justify-center text-xs font-mono-code text-stone-500" data-slot="ent1Pk" data-accept="pk">
+                  <span class="placeholder-text">Drop PK di sini</span>
+                </div>
+              </div>
+              <div>
+                <span class="text-[10px] text-stone-400 block mb-1">Atribut Deskriptif:</span>
+                <div class="drop-slot rounded-lg p-2 flex items-center justify-center text-xs font-mono-code text-stone-500" data-slot="ent1Attrs" data-accept="attr">
+                  <span class="placeholder-text">Drop Atribut di sini</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Box Relasi Transaksi -->
+            <div class="p-3.5 rounded-xl bg-stone-950 border border-amber-500/30 flex flex-col gap-2.5">
+              <div class="text-xs font-bold text-amber-300 flex items-center justify-between">
+                <span>2. Relasi &amp; Transaksi</span>
+                <span class="text-[10px] text-amber-400/80">Penghubung</span>
+              </div>
+              <div>
+                <span class="text-[10px] text-stone-400 block mb-1">Entitas Transaksi:</span>
+                <div class="drop-slot rounded-lg p-2 flex items-center justify-center text-xs font-mono-code text-stone-500" data-slot="entRelName" data-accept="entity">
+                  <span class="placeholder-text">Drop Entitas di sini</span>
+                </div>
+              </div>
+              <div>
+                <span class="text-[10px] text-stone-400 block mb-1">Atribut pada Transaksi:</span>
+                <div class="drop-slot rounded-lg p-2 flex items-center justify-center text-xs font-mono-code text-stone-500" data-slot="entRelAttrs" data-accept="attr">
+                  <span class="placeholder-text">Drop Atribut di sini</span>
+                </div>
+              </div>
+              <div>
+                <span class="text-[10px] text-stone-400 block mb-1">Kardinalitas Relasi:</span>
+                <div class="drop-slot rounded-lg p-2 flex items-center justify-center text-xs font-mono-code text-stone-500" data-slot="cardinality" data-accept="cardinality">
+                  <span class="placeholder-text">Drop Kardinalitas di sini</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Box Entitas 2 -->
+            <div class="p-3.5 rounded-xl bg-stone-950 border border-stone-800 flex flex-col gap-2.5">
+              <div class="text-xs font-bold text-brand-300 flex items-center justify-between">
+                <span>3. Entitas Master #2</span>
+                <span class="text-[10px] text-stone-500">Sisi 1</span>
+              </div>
+              <div>
+                <span class="text-[10px] text-stone-400 block mb-1">Nama Entitas:</span>
+                <div class="drop-slot rounded-lg p-2 flex items-center justify-center text-xs font-mono-code text-stone-500" data-slot="ent2Name" data-accept="entity">
+                  <span class="placeholder-text">Drop Entitas di sini</span>
+                </div>
+              </div>
+              <div>
+                <span class="text-[10px] text-stone-400 block mb-1">Key Atribut (Primary Key):</span>
+                <div class="drop-slot rounded-lg p-2 flex items-center justify-center text-xs font-mono-code text-stone-500" data-slot="ent2Pk" data-accept="pk">
+                  <span class="placeholder-text">Drop PK di sini</span>
+                </div>
+              </div>
+              <div>
+                <span class="text-[10px] text-stone-400 block mb-1">Atribut Deskriptif:</span>
+                <div class="drop-slot rounded-lg p-2 flex items-center justify-center text-xs font-mono-code text-stone-500" data-slot="ent2Attrs" data-accept="attr">
+                  <span class="placeholder-text">Drop Atribut di sini</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Visual ERD Canvas Preview -->
+          <div class="p-4 rounded-xl bg-stone-950 border border-stone-800">
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-stone-400 mb-2">Live Preview Diagram ERD</div>
+            <div id="erdVisualCanvas" class="min-h-[120px] flex items-center justify-center"></div>
+          </div>
+        </div>
+
+        <!-- PANEL SOAL 2: DRAG & DROP TRD BUILDER -->
+        <div id="trdBuilderPanel" class="hidden space-y-4">
+          <!-- Palette of Draggable TRD Items -->
+          <div class="p-3.5 rounded-xl bg-stone-950 border border-stone-800 space-y-2.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-stone-300 uppercase tracking-wider text-[11px]">Palet Komponen TRD Fisik</span>
+              <span class="text-[10px] text-stone-500">Tarik komponen ke dalam slot tabel di bawah</span>
+            </div>
+            <div id="trdPaletteContainer" class="flex flex-wrap gap-2">
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-amber-500/40 text-amber-300 font-mono-code text-xs" data-type="trd-pk" data-val="id_dokter INT PRIMARY KEY">🔑 id_dokter (INT PK)</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-amber-500/40 text-amber-300 font-mono-code text-xs" data-type="trd-pk" data-val="id_kunjungan INT PRIMARY KEY">🔑 id_kunjungan (INT PK)</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-amber-500/40 text-amber-300 font-mono-code text-xs" data-type="trd-pk" data-val="id_pasien INT PRIMARY KEY">🔑 id_pasien (INT PK)</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900/60 hover:bg-stone-800 border border-stone-700 text-stone-400 font-mono-code text-xs" data-type="trd-pk" data-val="nama_dokter VARCHAR(100) PRIMARY KEY">nama_dokter (VARCHAR PK)</div>
+
+              <div class="h-6 w-px bg-stone-800 my-auto hidden sm:block"></div>
+
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-emerald-500/40 text-emerald-300 font-mono-code text-xs font-bold" data-type="trd-fk" data-val="id_dokter -> dokter(id_dokter)">🔗 FK: id_dokter &rarr; dokter</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-emerald-500/40 text-emerald-300 font-mono-code text-xs font-bold" data-type="trd-fk" data-val="id_pasien -> pasien(id_pasien)">🔗 FK: id_pasien &rarr; pasien</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-stone-700 text-stone-300 font-mono-code text-xs" data-type="trd-fk" data-val="NONE">⛔ Tanpa FK (Master Sisi 1)</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900/60 hover:bg-stone-800 border border-stone-700 text-stone-400 font-mono-code text-xs" data-type="trd-fk" data-val="FK_KUNJUNGAN">🔗 id_kunjungan (FK)</div>
+
+              <div class="h-6 w-px bg-stone-800 my-auto hidden sm:block"></div>
+
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-stone-700 text-amber-300 font-mono-code text-xs font-bold" data-type="trd-type" data-val="DATE">Tipe: DATE</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900/60 hover:bg-stone-800 border border-stone-700 text-stone-400 font-mono-code text-xs" data-type="trd-type" data-val="INT">Tipe: INT</div>
+              <div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900/60 hover:bg-stone-800 border border-stone-700 text-stone-400 font-mono-code text-xs" data-type="trd-type" data-val="VARCHAR(150)">Tipe: VARCHAR(150)</div>
+            </div>
+          </div>
+
+          <!-- TRD Drop Targets Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <!-- Tabel dokter -->
+            <div class="p-3.5 rounded-xl bg-stone-950 border border-stone-800 flex flex-col gap-2.5">
+              <div class="text-xs font-bold text-brand-300 font-mono-code flex items-center justify-between">
+                <span>Tabel #1: dokter</span>
+                <span class="text-[10px] text-stone-500">Sisi 1</span>
+              </div>
+              <div>
+                <span class="text-[10px] text-stone-400 block mb-1">Primary Key (PK):</span>
+                <div class="drop-slot rounded-lg p-2 flex items-center justify-center text-xs font-mono-code text-stone-500" data-slot="dokterPk" data-accept="trd-pk">
+                  <span class="placeholder-text">Drop PK di sini</span>
+                </div>
+              </div>
+              <div>
+                <span class="text-[10px] text-stone-400 block mb-1">Aturan Foreign Key (FK):</span>
+                <div class="drop-slot rounded-lg p-2 flex items-center justify-center text-xs font-mono-code text-stone-500" data-slot="dokterFk" data-accept="trd-fk">
+                  <span class="placeholder-text">Drop Aturan FK di sini</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tabel kunjungan -->
+            <div class="p-3.5 rounded-xl bg-stone-950 border border-amber-500/40 flex flex-col gap-2.5">
+              <div class="text-xs font-bold text-amber-300 font-mono-code flex items-center justify-between">
+                <span>Tabel #2: kunjungan</span>
+                <span class="text-[10px] text-amber-400 font-bold">Sisi N</span>
+              </div>
+              <div>
+                <span class="text-[10px] text-stone-400 block mb-1">Primary Key (PK):</span>
+                <div class="drop-slot rounded-lg p-2 flex items-center justify-center text-xs font-mono-code text-stone-500" data-slot="kunjunganPk" data-accept="trd-pk">
+                  <span class="placeholder-text">Drop PK di sini</span>
+                </div>
+              </div>
+              <div>
+                <span class="text-[10px] text-stone-400 block mb-1">Foreign Key #1 (Dokter):</span>
+                <div class="drop-slot rounded-lg p-2 flex items-center justify-center text-xs font-mono-code text-stone-500" data-slot="kunjunganFk1" data-accept="trd-fk">
+                  <span class="placeholder-text">Drop FK Dokter di sini</span>
+                </div>
+              </div>
+              <div>
+                <span class="text-[10px] text-stone-400 block mb-1">Foreign Key #2 (Pasien):</span>
+                <div class="drop-slot rounded-lg p-2 flex items-center justify-center text-xs font-mono-code text-stone-500" data-slot="kunjunganFk2" data-accept="trd-fk">
+                  <span class="placeholder-text">Drop FK Pasien di sini</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tabel pasien -->
+            <div class="p-3.5 rounded-xl bg-stone-950 border border-stone-800 flex flex-col gap-2.5">
+              <div class="text-xs font-bold text-brand-300 font-mono-code flex items-center justify-between">
+                <span>Tabel #3: pasien</span>
+                <span class="text-[10px] text-stone-500">Sisi 1</span>
+              </div>
+              <div>
+                <span class="text-[10px] text-stone-400 block mb-1">Primary Key (PK):</span>
+                <div class="drop-slot rounded-lg p-2 flex items-center justify-center text-xs font-mono-code text-stone-500" data-slot="pasienPk" data-accept="trd-pk">
+                  <span class="placeholder-text">Drop PK di sini</span>
+                </div>
+              </div>
+              <div>
+                <span class="text-[10px] text-stone-400 block mb-1">Tipe Data Kolom tgl_lahir:</span>
+                <div class="drop-slot rounded-lg p-2 flex items-center justify-center text-xs font-mono-code text-stone-500" data-slot="pasienDateType" data-accept="trd-type">
+                  <span class="placeholder-text">Drop Tipe Data di sini</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Visual TRD Canvas Preview -->
+          <div class="p-4 rounded-xl bg-stone-950 border border-stone-800">
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-stone-400 mb-2">Live Preview Skema TRD</div>
+            <div id="trdVisualCanvas" class="min-h-[120px] flex items-center justify-center"></div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-stone-800">
+          <span class="text-[11px] text-stone-400">Rancangan visual akan diverifikasi dan disimpan sebagai jawaban resmi soal.</span>
+          <button
+            type="button"
+            id="btnVerifyVisualDesign"
+            class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-lg shadow-emerald-600/25 transition flex items-center gap-2"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            <span>Verifikasi &amp; Simpan Rancangan Diagram</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- SQL Editor Card -->
+      <div class="bg-stone-900 border border-stone-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-3">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-stone-200">Konsol Query SQL</span>
+            <span class="text-[11px] text-stone-500 hidden sm:inline">(Tekan <kbd class="px-1.5 py-0.5 bg-stone-800 border border-stone-700 rounded text-[10px] text-stone-300">Ctrl + Enter</kbd> untuk Run)</span>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <button type="button" id="btnClearEditor" class="px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-[11px] text-stone-300 border border-stone-700 transition">
+              Bersihkan
+            </button>
+            <button type="button" id="btnResetDatabase" class="px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-[11px] text-amber-300 border border-stone-700 hover:border-amber-500/30 transition">
+              Reset DB
+            </button>
+          </div>
+        </div>
+
+        <div class="relative">
+          <textarea
+            id="sqlEditorTextarea"
+            rows="6"
+            spellcheck="false"
+            placeholder="-- Tuliskan query SQL jawaban studi kasus di sini..."
+            class="w-full p-3.5 rounded-xl bg-stone-950 border border-stone-700 font-mono-code text-sm text-emerald-300 placeholder-stone-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 leading-relaxed resize-y"
+          ></textarea>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              id="btnRunQuery"
+              type="button"
+              class="px-4 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-white font-semibold text-xs border border-stone-600 transition flex items-center gap-2"
+            >
+              <svg class="w-4 h-4 text-brand-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+              </svg>
+              <span>Jalankan Query</span>
+            </button>
+
+            <button
+              id="btnSubmitAnswer"
+              type="button"
+              class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-lg shadow-emerald-600/25 transition flex items-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span>Verifikasi &amp; Simpan Jawaban</span>
+            </button>
+          </div>
+
+          <span id="lastSavedStatus" class="text-[11px] text-stone-400">Belum diverifikasi</span>
+        </div>
+      </div>
+
+      <!-- Query Feedback & Live Execution Result Table -->
+      <div class="bg-stone-900 border border-stone-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-stone-300">Hasil Eksekusi Query Real-Time</h3>
+            <span id="queryMetaBadge" class="hidden text-[11px] font-mono-code px-2 py-0.5 rounded bg-stone-800 text-stone-300 border border-stone-700"></span>
+          </div>
+          <!-- Expected Output: DOSEN ONLY -->
+          <button id="btnCompareExpected" type="button" class="dosen-only-feature text-xs text-brand-400 hover:text-brand-300 underline font-medium hidden">
+            Lihat Struktur Output yang Diharapkan
+          </button>
+        </div>
+
+        <!-- Grading Feedback Banner -->
+        <div id="gradingFeedbackBanner" class="hidden p-3.5 rounded-xl border text-xs leading-relaxed"></div>
+
+        <!-- Expected Output Preview Box (Toggled — DOSEN ONLY) -->
+        <div id="expectedOutputPreviewBox" class="hidden p-3.5 rounded-xl bg-stone-950 border border-brand-500/30">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-brand-300">Target Hasil Referensi (Kunci Jawaban Sistem)</span>
+            <button id="btnCloseExpectedPreview" type="button" class="text-xs text-stone-400 hover:text-white">&times; Tutup</button>
+          </div>
+          <div id="expectedOutputTableWrapper" class="overflow-x-auto max-h-56"></div>
+        </div>
+
+        <!-- Result Container -->
+        <div id="queryResultContainer" class="min-h-[160px] max-h-[360px] overflow-auto rounded-xl bg-stone-950 border border-stone-800 p-3 flex items-center justify-center text-xs text-stone-500">
+          Jalankan query SQL Anda untuk melihat tabel hasil eksekusi secara langsung dari database.
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- MODAL: REKAPITULASI & BUKTI HASIL ASESMEN -->
+  <div id="summaryModal" class="hidden fixed inset-0 z-40 bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-stone-900 border border-stone-700 rounded-2xl max-w-3xl w-full p-5 sm:p-6 shadow-2xl my-8 max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-4 border-b border-stone-800">
+        <div>
+          <h2 class="text-lg font-bold text-white">Laporan Hasil Asesmen Pemrograman Database</h2>
+          <p class="text-xs text-stone-400">Studi Kasus ERD, TRD, DDL & DML — Klinik SehatKampus</p>
+        </div>
+        <button id="btnCloseSummaryModal" type="button" class="p-2 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300">
+          &times;
+        </button>
+      </div>
+
+      <div class="overflow-y-auto py-4 space-y-4 flex-1 pr-1">
+        <!-- Auto-Submit Violation Alert Banner (Hidden unless triggered by tab switch) -->
+        <div id="autoSubmitViolationBanner" class="hidden p-4 rounded-xl bg-rose-950/80 border-2 border-rose-500 text-xs text-rose-100 space-y-1 shadow-lg">
+          <div class="flex items-center gap-2 text-sm font-extrabold text-rose-300 uppercase tracking-wide">
+            <svg class="w-5 h-5 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <span>Ujian Dihentikan Otomatis (Auto-Submit Karena Pindah Tab / Jendela)</span>
+          </div>
+          <p id="autoSubmitViolationDetail" class="text-rose-200 leading-relaxed">
+            Sistem mendeteksi Anda meninggalkan halaman ujian (membuka tab lain atau berpindah jendela). Sesuai aturan praktikum, seluruh jawaban terakhir Anda telah dikumpulkan otomatis dan NIM/Nama Anda kini telah dikunci permanen.
+          </p>
+        </div>
+
+        <!-- Student & Final Score Summary Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="p-3.5 rounded-xl bg-stone-950 border border-stone-800">
+            <span class="text-[11px] text-stone-400 uppercase tracking-wider block">Mahasiswa</span>
+            <div id="modalStudentName" class="font-bold text-white text-sm mt-0.5">-</div>
+            <div id="modalStudentNrp" class="font-mono-code text-xs text-brand-300 mt-0.5">-</div>
+            <div id="modalStudentClass" class="text-[11px] text-stone-400 mt-0.5">-</div>
+          </div>
+          <div class="p-3.5 rounded-xl bg-stone-950 border border-stone-800">
+            <span class="text-[11px] text-stone-400 uppercase tracking-wider block">Statistik Pengerjaan</span>
+            <div id="modalSolvedCount" class="font-bold text-white text-sm mt-0.5">0 dari 6 Soal Benar</div>
+            <div id="modalDurationText" class="text-xs text-amber-300 font-mono-code mt-0.5">Durasi: 00:00</div>
+          </div>
+          <div class="p-3.5 rounded-xl bg-brand-950/30 border border-brand-500/30 flex items-center justify-between">
+            <div>
+              <span class="text-[11px] text-brand-300 uppercase tracking-wider block">Total Nilai Akhir</span>
+              <div id="modalFinalScore" class="text-2xl font-extrabold text-brand-400 mt-0.5">0 / 100</div>
+            </div>
+            <div id="modalGradeBadge" class="w-12 h-12 rounded-xl bg-brand-500/20 border border-brand-400/40 flex items-center justify-center text-lg font-extrabold text-brand-300">
+              E
+            </div>
+          </div>
+        </div>
+
+        <!-- Per-question breakdown table -->
+        <div class="border border-stone-800 rounded-xl overflow-hidden">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-stone-800/90 text-stone-300">
+                <th class="py-2.5 px-3 font-semibold">No</th>
+                <th class="py-2.5 px-3 font-semibold">Soal Studi Kasus</th>
+                <th class="py-2.5 px-3 font-semibold">Status</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Poin</th>
+              </tr>
+            </thead>
+            <tbody id="modalBreakdownTbody" class="divide-y divide-stone-800 bg-stone-950/60"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="pt-4 border-t border-stone-800 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="btnFinalizeAndLockExam" type="button" class="px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-600/25 transition">
+            Kumpulkan Final &amp; Selesai (Kunci NIM)
+          </button>
+          <button id="btnDownloadSqliteFile" type="button" class="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition">
+            Unduh File SQLite (.sqlite)
+          </button>
+          <button id="btnCopyReportText" type="button" class="px-3.5 py-2 rounded-xl bg-stone-700 hover:bg-stone-600 text-white text-xs font-semibold transition">
+            Salin Bukti Jawaban (Teks)
+          </button>
+          <button id="btnDownloadReportJson" type="button" class="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 text-xs font-semibold transition">
+            Unduh Laporan (.json)
+          </button>
+        </div>
+        <button id="btnContinueExam" type="button" class="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-medium transition">
+          Kembali ke Editor Soal
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: KONFIRMASI LOGOUT / RESET SESI -->
+  <div id="logoutConfirmModal" class="hidden fixed inset-0 z-40 bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-stone-900 border border-stone-700 rounded-2xl max-w-md w-full p-5 shadow-2xl">
+      <h3 class="text-base font-bold text-white mb-1.5">Ganti Peserta / Mulai Ulang Sesi?</h3>
+      <p class="text-xs text-stone-300 leading-relaxed mb-4">
+        Mengakhiri sesi akan menyimpan permanen dan MENGUNCI Nama serta NIM/NRP Anda sebagai "Sudah Mengerjakan" (tidak dapat login ulang dengan Nama atau NIM yang sama). Pastikan Anda sudah mengunduh file .sqlite atau bukti hasil asesmen.
+      </p>
+      <div class="flex items-center justify-end gap-2">
+        <button id="btnCancelLogout" type="button" class="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-medium">
+          Batal
+        </button>
+        <button id="btnConfirmLogout" type="button" class="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold">
+          Ya, Reset & Keluar
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+</body>
+</html>
