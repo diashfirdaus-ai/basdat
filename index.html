@@ -7,6 +7,7 @@
   <meta name="description" content="Sistem asesmen praktikum pemrograman database dengan studi kasus ERD, TRD, DDL, dan DML berbasis SQL interaktif." />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-client.js"></script>
+  <script src="cases-config.js"></script>
   <script src="app.js"></script>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
@@ -186,10 +187,9 @@
               id="inputKelas"
               class="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-sm text-white focus:outline-none focus:border-brand-500 transition"
             >
-              <option value="Pemrograman Database - Kelas A">Pemrograman Database - Kelas A</option>
-              <option value="Pemrograman Database - Kelas B">Pemrograman Database - Kelas B</option>
-              <option value="Pemrograman Database - Kelas C">Pemrograman Database - Kelas C</option>
-              <option value="Asesmen Pengganti / Susulan">Asesmen Pengganti / Susulan</option>
+              <option value="Kelas A">Kelas A — Studi Kasus: Klinik SehatKampus</option>
+              <option value="Kelas B">Kelas B — Studi Kasus: Perpustakaan SmartCampus</option>
+              <option value="Kelas C">Kelas C — Studi Kasus: Rental Mobil AutoCampus</option>
             </select>
           </div>
 
@@ -751,9 +751,6 @@
           <button id="btnFinalizeAndLockExam" type="button" class="px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-600/25 transition">
             Kumpulkan Final &amp; Selesai (Kunci NIM)
           </button>
-          <button id="btnDownloadSqliteFile" type="button" class="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition">
-            Unduh File SQLite (.sqlite)
-          </button>
           <button id="btnCopyReportText" type="button" class="px-3.5 py-2 rounded-xl bg-stone-700 hover:bg-stone-600 text-white text-xs font-semibold transition">
             Salin Bukti Jawaban (Teks)
           </button>
@@ -773,7 +770,7 @@
     <div class="bg-stone-900 border border-stone-700 rounded-2xl max-w-md w-full p-5 shadow-2xl">
       <h3 class="text-base font-bold text-white mb-1.5">Ganti Peserta / Mulai Ulang Sesi?</h3>
       <p class="text-xs text-stone-300 leading-relaxed mb-4">
-        Mengakhiri sesi akan menyimpan permanen dan MENGUNCI Nama serta NIM/NRP Anda sebagai "Sudah Mengerjakan" (tidak dapat login ulang dengan Nama atau NIM yang sama). Pastikan Anda sudah mengunduh file .sqlite atau bukti hasil asesmen.
+        Mengakhiri sesi akan menyimpan permanen dan MENGUNCI Nama serta NIM/NRP Anda sebagai "Sudah Mengerjakan". Seluruh lembar jawaban Anda otomatis tersinkronisasi ke Cloud Supabase dosen.
       </p>
       <div class="flex items-center justify-end gap-2">
         <button id="btnCancelLogout" type="button" class="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-medium">
