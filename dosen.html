@@ -397,14 +397,16 @@
     <!-- TAB PANEL 3: BANK SOAL & KUNCI JAWABAN LENGKAP -->
     <section id="panelKunci" class="hidden flex flex-col gap-3">
       <div class="bg-stone-900 border border-stone-800 rounded-2xl p-4 sm:p-5">
-        <div class="mb-3 pb-3 border-b border-stone-800 flex items-center justify-between">
+        <div class="mb-3 pb-3 border-b border-stone-800 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 class="text-xs font-bold text-white uppercase tracking-wider">Kunci Solusi Resmi Studi Kasus Pemrograman Database</h3>
-            <p class="text-[11px] text-stone-400 mt-0.5">Solusi query SQL referensi sistem untuk Soal 1 s/d 6.</p>
+            <p class="text-[11px] text-stone-400 mt-0.5">Solusi query SQL referensi sistem per kelas praktikum.</p>
           </div>
-          <span class="text-xs font-mono-code px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold">
-            Total 100 Poin
-          </span>
+          <div class="flex items-center gap-1.5 p-1 rounded-xl bg-stone-950 border border-stone-800">
+            <button type="button" onclick="switchDosenBankClass('Kelas A')" id="btnBankKelasA" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">Kelas A: Klinik</button>
+            <button type="button" onclick="switchDosenBankClass('Kelas B')" id="btnBankKelasB" class="px-2.5 py-1 rounded-lg text-xs font-semibold text-stone-400 hover:text-white">Kelas B: Perpus</button>
+            <button type="button" onclick="switchDosenBankClass('Kelas C')" id="btnBankKelasC" class="px-2.5 py-1 rounded-lg text-xs font-semibold text-stone-400 hover:text-white">Kelas C: Rental</button>
+          </div>
         </div>
 
         <div id="dosenQuestionsList" class="space-y-3">
@@ -419,7 +421,7 @@
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300">Konsol Query SQL Dosen</h3>
-            <p class="text-[11px] text-stone-400">Eksekusi query analitis pada database SQLite untuk memeriksa data tabel.</p>
+            <p class="text-[11px] text-stone-400">Eksekusi query analitis pada database untuk memeriksa data tabel.</p>
           </div>
 
           <div class="flex flex-wrap items-center gap-1.5">
@@ -457,7 +459,7 @@
 
         <div class="mt-1">
           <div id="dosenQueryResultContainer" class="min-h-[140px] max-h-[360px] overflow-auto rounded-xl bg-stone-950 border border-stone-800 p-3 flex items-center justify-center text-xs text-stone-500">
-            Jalankan query SQL untuk melihat hasil query dari database SQLite.
+            Jalankan query SQL untuk melihat hasil query dari database.
           </div>
         </div>
       </div>
@@ -572,7 +574,7 @@
         </div>
       </div>
       <p class="text-xs text-stone-300 leading-relaxed mb-4">
-        Tindakan ini akan <strong>menghapus kuncian pengerjaan</strong> mahasiswa dari database SQLite sehingga mahasiswa dapat login dan mengulang asesmen praktikum.
+        Tindakan ini akan <strong>menghapus kuncian pengerjaan</strong> mahasiswa sehingga mahasiswa dapat login dan mengulang asesmen praktikum.
       </p>
       <div class="flex items-center justify-end gap-2">
         <button id="btnCancelUnlock" type="button" class="px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-medium">
@@ -606,7 +608,7 @@
     <div class="bg-stone-900 border border-stone-700 rounded-2xl max-w-sm w-full p-5 shadow-2xl">
       <h3 class="text-sm font-bold text-white mb-1">Reset Seluruh Data Asesmen?</h3>
       <p class="text-xs text-stone-300 leading-relaxed mb-4">
-        Semua riwayat nilai peserta, lembar jawaban, dan log aktivitas akan dibersihkan dari database SQLite.
+        Semua riwayat nilai peserta, lembar jawaban, dan log aktivitas akan dibersihkan dari database sistem.
       </p>
       <div class="flex items-center justify-end gap-2">
         <button id="btnCancelClearAll" type="button" class="px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-medium">

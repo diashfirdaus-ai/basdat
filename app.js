@@ -204,127 +204,33 @@ async function persistSqliteBinaryToStorage(uint8Array) {
 }
 
 /********************************************************************
- * 2. RANCANGAN ERD & TRD STUDI KASUS: KLINIK SEHATKAMPUS
+ * 2. RANCANGAN ERD & TRD STUDI KASUS MULTI-KELAS (A, B, C)
+ * Data soal dan skema diambil secara dinamis dari cases-config.js
+ * Tanpa spoiler jawaban di starterQuery!
  ********************************************************************/
-const SCHEMA_METADATA = [
-  {
-    table: 'dokter',
-    entityName: 'Entitas DOKTER',
-    desc: 'Menyimpan data master dokter yang bertugas di Klinik SehatKampus',
-    columns: [
-      { name: 'id_dokter', type: 'INT', pk: true, note: 'Primary Key' },
-      { name: 'nama_dokter', type: 'VARCHAR(100)', note: 'Nama lengkap dokter' },
-      { name: 'spesialis', type: 'VARCHAR(50)', note: 'Bidang keahlian medis' }
-    ]
-  },
-  {
-    table: 'pasien',
-    entityName: 'Entitas PASIEN',
-    desc: 'Menyimpan data mahasiswa/staf yang berobat (di-ALTER tambah kolom no_telepon pada Soal #4)',
-    columns: [
-      { name: 'id_pasien', type: 'INT', pk: true, note: 'Primary Key' },
-      { name: 'nama_pasien', type: 'VARCHAR(100)', note: 'Nama lengkap pasien' },
-      { name: 'tgl_lahir', type: 'DATE', note: 'Tanggal lahir (YYYY-MM-DD)' },
-      { name: 'no_telepon', type: 'VARCHAR(20)', isAlterTarget: true, note: 'Ditambahkan lewat ALTER TABLE di Soal #4' }
-    ]
-  },
-  {
-    table: 'kunjungan',
-    entityName: 'Entitas Asosiatif / Transaksi KUNJUNGAN',
-    desc: 'Hasil transformasi TRD relasi 1:N antara Dokter & Pasien',
-    columns: [
-      { name: 'id_kunjungan', type: 'INT', pk: true, note: 'Primary Key' },
-      { name: 'id_pasien', type: 'INT', fk: 'pasien.id_pasien', note: 'Foreign Key ke tabel pasien' },
-      { name: 'id_dokter', type: 'INT', fk: 'dokter.id_dokter', note: 'Foreign Key ke tabel dokter' },
-      { name: 'tgl_kunjungan', type: 'DATE', note: 'Tanggal pemeriksaan' },
-      { name: 'diagnosa', type: 'VARCHAR(150)', note: 'Catatan hasil diagnosa' }
-    ]
+function getActiveCaseStudy() {
+  const k = (appState && appState.student && appState.student.kelas) ? appState.student.kelas : 'Kelas A';
+  if (typeof getClassCaseStudy === 'function') {
+    return getClassCaseStudy(k);
   }
-];
+  if (typeof CASE_STUDY_CLASSES !== 'undefined') {
+    return CASE_STUDY_CLASSES['Kelas A'];
+  }
+  return null;
+}
 
-/********************************************************************
- * 3. DAFTAR 6 SOAL STUDI KASUS (ERD, TRD, CREATE DB/TABLE, ALTER, INSERT, DELETE)
- ********************************************************************/
-const CASE_STUDY_QUESTIONS = [
-  {
-    id: 1,
-    title: 'Tahap 1: Merancang ERD (Entity Relationship Diagram) Studi Kasus',
-    level: 'Langkah 1 — Buat ERD',
-    points: 15,
-    type: 'DESIGN_ERD',
-    scenario: 'Klinik Kesehatan Kampus "SehatKampus" ingin mendigitalisasi pencatatan rekam medis. Berdasarkan wawancara dengan kepala klinik: (1) Klinik memiliki banyak DOKTER dengan data id_dokter, nama_dokter, dan spesialis. (2) Mahasiswa yang berobat dicatat sebagai PASIEN dengan data id_pasien, nama_pasien, dan tgl_lahir. (3) Setiap kali pasien berobat ke dokter, dicatat dalam data KUNJUNGAN yang memiliki id_kunjungan, tgl_kunjungan, dan diagnosa. Satu dokter maupun satu pasien dapat terlibat dalam banyak kunjungan pemeriksaan.',
-    instruction: 'Sebelum menyentuh kode SQL, rancanglah ERD (Entity Relationship Diagram) terlebih dahulu menggunakan panel "Workspace Perancangan ERD Interaktif" di bawah! Tentukan: (1) 3 Entitas yang benar (DOKTER, KUNJUNGAN, PASIEN), (2) Key Atribut (Primary Key) & atribut deskriptif masing-masing entitas, serta (3) Kardinalitas relasinya (1:N), lalu klik "Verifikasi & Simpan Rancangan Diagram".',
-    expectedColumns: ['Entitas: DOKTER, KUNJUNGAN, PASIEN', 'Identifier: id_dokter, id_kunjungan, id_pasien', 'Kardinalitas: 1 : N'],
-    hint: 'Pilih Entitas Master #1 = DOKTER (PK: id_dokter), Entitas Transaksi = KUNJUNGAN (Kardinalitas 1:N), dan Entitas Master #2 = PASIEN (PK: id_pasien) pada form interaktif di bawah.',
-    starterQuery: '-- Ringkasan Rancangan ERD akan otomatis tercatat di sini setelah Anda menyusun ERD pada form di atas.',
-    referenceDesc: 'ERD terdiri dari Entitas DOKTER (id_dokter, nama_dokter, spesialis), PASIEN (id_pasien, nama_pasien, tgl_lahir), dan KUNJUNGAN (id_kunjungan, tgl_kunjungan, diagnosa) dengan kardinalitas 1:N.'
-  },
-  {
-    id: 2,
-    title: 'Tahap 2: Mentransformasikan ERD Menjadi TRD (Table Relationship Diagram)',
-    level: 'Langkah 2 — Buat TRD',
-    points: 15,
-    type: 'DESIGN_TRD',
-    scenario: 'Setelah ERD selesai dirancang pada Soal #1, tahap kedua adalah menerjemahkan ERD konseptual tersebut menjadi TRD (Table Relationship Diagram) agar siap diimplementasikan menjadi tabel fisik di DBMS.',
-    instruction: 'Gunakan panel "Workspace Perancangan TRD Interaktif" di bawah untuk memetakan struktur tabel fisik: tentukan Primary Key (PK) beserta tipe datanya pada tabel dokter, kunjungan, dan pasien, serta tentukan peletakan kedua Foreign Key (id_dokter dan id_pasien) pada tabel kunjungan (sisi N). Klik "Verifikasi & Simpan Rancangan Diagram" setelah selesai.',
-    expectedColumns: ['Tabel dokter (PK: id_dokter INT, Tanpa FK)', 'Tabel kunjungan (PK: id_kunjungan INT, FK: id_dokter & id_pasien)', 'Tabel pasien (PK: id_pasien INT, tgl_lahir DATE)'],
-    hint: 'Dalam aturan transformasi ERD ke TRD, tabel di sisi "1" (dokter & pasien) tidak menyimpan FK, sedangkan tabel di sisi "N" (kunjungan) wajib menyimpan Foreign Key id_dokter dan id_pasien.',
-    starterQuery: '-- Ringkasan Rancangan TRD akan otomatis tercatat di sini setelah Anda menyusun TRD pada form di atas.',
-    referenceDesc: 'TRD memetakan 3 tabel fisik: dokter (PK id_dokter), pasien (PK id_pasien), dan kunjungan (PK id_kunjungan + FK id_dokter & FK id_pasien).'
-  },
-  {
-    id: 3,
-    title: 'Tahap 3: Membuat Database SQLite & Membuat Tabel Sesuai TRD (CREATE TABLE)',
-    level: 'Langkah 3 — SQLite DDL',
-    points: 25,
-    type: 'DDL_CREATE_DB_AND_TABLES',
-    scenario: 'Rancangan ERD dan TRD Anda telah disetujui! Sekarang saatnya mengimplementasikan TRD tersebut secara nyata ke dalam mesin database SQLite (klinik_sehatkampus.sqlite).',
-    instruction: 'Tuliskan dan jalankan perintah SQLite di konsol editor untuk:\n1) Menginisialisasi file database SQLite db_klinik_kampus (atau mengaktifkan PRAGMA foreign_keys = ON;).\n2) Membuat 3 tabel sesuai TRD Anda menggunakan CREATE TABLE: tabel dokter (id_dokter, nama_dokter, spesialis), tabel pasien (id_pasien, nama_pasien, tgl_lahir), dan tabel kunjungan (id_kunjungan, id_pasien, id_dokter, tgl_kunjungan, diagnosa).',
-    expectedColumns: ['SQLite Database Aktif (PRAGMA foreign_keys = ON)', 'CREATE TABLE dokter', 'CREATE TABLE pasien', 'CREATE TABLE kunjungan'],
-    hint: 'Pada SQLite, Anda dapat mengaktifkan relasi FK dengan PRAGMA foreign_keys = ON; (atau CREATE DATABASE db_klinik_kampus;) lalu menjalankan 3 perintah CREATE TABLE (dokter, pasien, dan kunjungan).',
-    starterQuery: '-- 1. Aktifkan dukungan Foreign Key pada database SQLite\nPRAGMA foreign_keys = ON;\n\n-- 2. Buat tabel master dokter & pasien sesuai TRD\nCREATE TABLE dokter (\n  id_dokter INTEGER PRIMARY KEY,\n  nama_dokter VARCHAR(100),\n  spesialis VARCHAR(50)\n);\n\nCREATE TABLE pasien (\n  id_pasien INTEGER PRIMARY KEY,\n  nama_pasien VARCHAR(100),\n  tgl_lahir DATE\n);\n\n-- 3. Buat tabel relasi kunjungan sesuai TRD\nCREATE TABLE kunjungan (\n  id_kunjungan INTEGER PRIMARY KEY,\n  id_pasien INTEGER,\n  id_dokter INTEGER,\n  tgl_kunjungan DATE,\n  diagnosa VARCHAR(150),\n  FOREIGN KEY (id_pasien) REFERENCES pasien(id_pasien),\n  FOREIGN KEY (id_dokter) REFERENCES dokter(id_dokter)\n);',
-    referenceDesc: 'Database SQLite aktif dan ketiga tabel (dokter, pasien, kunjungan) berhasil terbentuk di sqlite_master sesuai struktur TRD.'
-  },
-  {
-    id: 4,
-    title: 'Tahap 4: Memodifikasi Struktur Tabel (ALTER TABLE)',
-    level: 'Langkah 4 — ALTER TABLE',
-    points: 15,
-    type: 'DDL_ALTER_TABLE',
-    scenario: 'Setelah database dan ketiga tabel dibuat, bagian administrasi Klinik SehatKampus meminta penambahan kolom baru no_telepon pada tabel pasien untuk menghubungi mahasiswa terkait jadwal kontrol.',
-    instruction: 'Gunakan perintah ALTER TABLE pada tabel pasien untuk menambahkan kolom baru bernama no_telepon dengan tipe data VARCHAR(20).',
-    expectedColumns: ['id_pasien', 'nama_pasien', 'tgl_lahir', 'no_telepon (Kolom Baru hasil ALTER)'],
-    hint: 'Gunakan perintah:\nALTER TABLE pasien ADD COLUMN no_telepon VARCHAR(20);\n(Atau: ALTER TABLE pasien ADD no_telepon VARCHAR(20);)',
-    starterQuery: 'ALTER TABLE pasien\nADD COLUMN no_telepon VARCHAR(20);',
-    referenceDesc: 'Struktur tabel pasien memiliki kolom tambahan no_telepon.'
-  },
-  {
-    id: 5,
-    title: 'Tahap 5: Mengisi Record Data ke Tabel (INSERT INTO)',
-    level: 'Langkah 5 — INSERT RECORD',
-    points: 15,
-    type: 'DML_INSERT',
-    scenario: 'Struktur tabel sudah lengkap. Kini petugas klinik mulai menginput record data dokter, data pasien mahasiswa yang mendaftar, serta record transaksi kunjungan.',
-    instruction: 'Masukkan (INSERT INTO) record data berikut ke dalam database:\n1) Ke tabel dokter: minimal 2 record dokter (misal id_dokter 1 dan 2).\n2) Ke tabel pasien (id_pasien, nama_pasien, tgl_lahir, no_telepon): minimal 3 record pasien dengan id_pasien = 101, 102, dan 103.\n3) Ke tabel kunjungan: minimal 1 record transaksi kunjungan.',
-    expectedColumns: ['dokter (>= 2 record)', 'pasien (>= 3 record, termasuk id_pasien 103)', 'kunjungan (>= 1 record)'],
-    hint: 'Pastikan menyertakan id_pasien 101, 102, dan 103 pada INSERT INTO pasien agar siap diuji pada soal DELETE berikutnya.',
-    starterQuery: "-- 1. Isi record tabel dokter\nINSERT INTO dokter VALUES (1, 'dr. Andi Wijaya', 'Umum');\nINSERT INTO dokter VALUES (2, 'drg. Sari Kusuma', 'Gigi');\n\n-- 2. Isi 3 record tabel pasien (id_pasien 101, 102, dan 103)\nINSERT INTO pasien VALUES (101, 'Raka Pratama', '2004-05-12', '081234567801');\nINSERT INTO pasien VALUES (102, 'Nadia Putri', '2005-08-21', '081234567802');\nINSERT INTO pasien VALUES (103, 'Budi Santoso', '2004-11-03', '081234567803');\n\n-- 3. Isi record ke tabel kunjungan\nINSERT INTO kunjungan VALUES (501, 101, 1, '2026-10-15', 'Pemeriksaan Flu & Demam');",
-    referenceDesc: 'Tabel dokter memiliki >= 2 baris, tabel pasien memiliki >= 3 baris (termasuk id_pasien 101, 102, 103), dan tabel kunjungan memiliki >= 1 baris.'
-  },
-  {
-    id: 6,
-    title: 'Tahap 6: Menghapus Record Data Batal Registrasi (DELETE FROM)',
-    level: 'Langkah 6 — DELETE RECORD',
-    points: 15,
-    type: 'DML_DELETE',
-    scenario: 'Pasien dengan id_pasien = 103 (Budi Santoso) membatalkan pendaftaran berobat dan meminta agar record datanya dihapus dari tabel pasien.',
-    instruction: 'Tuliskan perintah DELETE FROM pada tabel pasien untuk menghapus HANYA record milik pasien dengan id_pasien = 103. Pastikan data pasien lainnya (id_pasien 101 dan 102) tidak ikut terhapus!',
-    expectedColumns: ['id_pasien 101 (Tetap Ada)', 'id_pasien 102 (Tetap Ada)', 'id_pasien 103 (Terhapus)'],
-    hint: 'Gunakan klausa WHERE agar tidak menghapus seluruh isi tabel:\nDELETE FROM pasien WHERE id_pasien = 103;',
-    starterQuery: 'DELETE FROM pasien\nWHERE id_pasien = 103;',
-    referenceDesc: 'Record pasien dengan id_pasien = 103 terhapus dari tabel pasien, sementara pasien lainnya tetap tersimpan.'
+let SCHEMA_METADATA = (typeof CASE_STUDY_CLASSES !== 'undefined' && CASE_STUDY_CLASSES['Kelas A']) ? CASE_STUDY_CLASSES['Kelas A'].schemaMetadata : [];
+let CASE_STUDY_QUESTIONS = (typeof CASE_STUDY_CLASSES !== 'undefined' && CASE_STUDY_CLASSES['Kelas A']) ? CASE_STUDY_CLASSES['Kelas A'].questions : [];
+
+function syncCaseStudyData() {
+  const cs = getActiveCaseStudy();
+  if (cs) {
+    SCHEMA_METADATA = cs.schemaMetadata;
+    CASE_STUDY_QUESTIONS = cs.questions;
+    currentDatabaseName = `${cs.dbName}.sqlite`;
+    jsCatalog.activeDb = `${cs.dbName}.sqlite`;
   }
-];
+}
 
 /********************************************************************
  * 4. REAL IN-BROWSER SQL ENGINE (SQLite WASM + Persistent Storage)
@@ -472,6 +378,9 @@ let trdDesignState = { dokterPk: '', dokterFk: '', kunjunganPk: '', kunjunganFk1
 function renderLiveErdCanvas() {
   const container = document.getElementById('erdVisualCanvas');
   if (!container) return;
+  const cs = getActiveCaseStudy();
+  const exp = cs ? cs.erdExpected : { ent1Name: 'DOKTER', entRelName: 'KUNJUNGAN', ent2Name: 'PASIEN' };
+
   const e1 = erdDesignState.ent1Name || '[Entitas #1?]';
   const e1pk = erdDesignState.ent1Pk || 'pk?';
   const e1a = erdDesignState.ent1Attrs || 'atribut?';
@@ -484,7 +393,7 @@ function renderLiveErdCanvas() {
 
   container.innerHTML = `
     <div class="w-full grid grid-cols-1 sm:grid-cols-3 items-center gap-3 text-center font-mono-code text-xs">
-      <div class="p-3 rounded-xl bg-stone-900 border-2 ${erdDesignState.ent1Name === 'DOKTER' ? 'border-emerald-500/60' : 'border-brand-500/40'}">
+      <div class="p-3 rounded-xl bg-stone-900 border-2 ${erdDesignState.ent1Name === exp.ent1Name ? 'border-emerald-500/60' : 'border-brand-500/40'}">
         <div class="font-bold text-white text-sm">[ ${escapeHtml(e1)} ]</div>
         <div class="mt-1.5 text-[11px] text-amber-300 underline">PK: ${escapeHtml(e1pk)}</div>
         <div class="text-[10px] text-stone-400 mt-0.5">${escapeHtml(e1a)}</div>
@@ -493,12 +402,12 @@ function renderLiveErdCanvas() {
         <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">
           Kardinalitas: ${escapeHtml(card)}
         </span>
-        <div class="w-full p-2.5 rounded-xl bg-amber-500/15 border-2 ${erdDesignState.entRelName === 'KUNJUNGAN' ? 'border-emerald-500/60' : 'border-amber-400/50'}">
+        <div class="w-full p-2.5 rounded-xl bg-amber-500/15 border-2 ${erdDesignState.entRelName === exp.entRelName ? 'border-emerald-500/60' : 'border-amber-400/50'}">
           <div class="font-bold text-amber-300">&lt; ${escapeHtml(erel)} &gt;</div>
           <div class="text-[10px] text-stone-300 mt-1">${escapeHtml(erela)}</div>
         </div>
       </div>
-      <div class="p-3 rounded-xl bg-stone-900 border-2 ${erdDesignState.ent2Name === 'PASIEN' ? 'border-emerald-500/60' : 'border-brand-500/40'}">
+      <div class="p-3 rounded-xl bg-stone-900 border-2 ${erdDesignState.ent2Name === exp.ent2Name ? 'border-emerald-500/60' : 'border-brand-500/40'}">
         <div class="font-bold text-white text-sm">[ ${escapeHtml(e2)} ]</div>
         <div class="mt-1.5 text-[11px] text-amber-300 underline">PK: ${escapeHtml(e2pk)}</div>
         <div class="text-[10px] text-stone-400 mt-0.5">${escapeHtml(e2a)}</div>
@@ -510,8 +419,13 @@ function renderLiveErdCanvas() {
 function renderLiveTrdCanvas() {
   const container = document.getElementById('trdVisualCanvas');
   if (!container) return;
+  const cs = getActiveCaseStudy();
+  const m1 = cs ? cs.master1Name : 'dokter';
+  const m2 = cs ? cs.master2Name : 'pasien';
+  const rel = cs ? cs.relName : 'kunjungan';
+
   const dPk = trdDesignState.dokterPk || 'PK belum dipilih';
-  const dFk = trdDesignState.dokterFk === 'NONE' ? 'Tanpa FK (Tabel Master 1)' : (trdDesignState.dokterFk || 'FK?');
+  const dFk = trdDesignState.dokterFk === 'NONE' ? `Tanpa FK (Tabel ${m1})` : (trdDesignState.dokterFk || 'FK?');
   const kPk = trdDesignState.kunjunganPk || 'PK belum dipilih';
   const kFk1 = trdDesignState.kunjunganFk1 || 'FK #1 belum dipilih';
   const kFk2 = trdDesignState.kunjunganFk2 || 'FK #2 belum dipilih';
@@ -522,30 +436,25 @@ function renderLiveTrdCanvas() {
     <div class="w-full grid grid-cols-1 sm:grid-cols-3 items-stretch gap-3 font-mono-code text-xs">
       <div class="p-3 rounded-xl bg-stone-900 border border-stone-700 flex flex-col justify-between">
         <div>
-          <div class="font-bold text-brand-300 border-b border-stone-800 pb-1 mb-1.5">TABEL: dokter (1)</div>
+          <div class="font-bold text-brand-300 border-b border-stone-800 pb-1 mb-1.5">TABEL: ${escapeHtml(m1)} (1)</div>
           <div class="text-[11px] text-amber-300">PK: ${escapeHtml(dPk)}</div>
-          <div class="text-[11px] text-stone-300">nama_dokter VARCHAR(100)</div>
-          <div class="text-[11px] text-stone-300">spesialis VARCHAR(50)</div>
         </div>
         <div class="mt-2 pt-1.5 border-t border-stone-800 text-[10px] text-stone-400">${escapeHtml(dFk)}</div>
       </div>
       <div class="p-3 rounded-xl bg-brand-950/30 border-2 border-amber-500/50 flex flex-col justify-between">
         <div>
-          <div class="font-bold text-amber-300 border-b border-stone-800 pb-1 mb-1.5">TABEL: kunjungan (N)</div>
+          <div class="font-bold text-amber-300 border-b border-stone-800 pb-1 mb-1.5">TABEL: ${escapeHtml(rel)} (N)</div>
           <div class="text-[11px] text-amber-300">PK: ${escapeHtml(kPk)}</div>
           <div class="text-[11px] text-amber-300">FK1: ${escapeHtml(kFk1)}</div>
           <div class="text-[11px] text-amber-300">FK2: ${escapeHtml(kFk2)}</div>
-          <div class="text-[11px] text-stone-300">tgl_kunjungan DATE</div>
-          <div class="text-[11px] text-stone-300">diagnosa VARCHAR(150)</div>
         </div>
-        <div class="mt-2 pt-1.5 border-t border-stone-800 text-[10px] text-emerald-300">1 ───&lt; N dari dokter &amp; pasien</div>
+        <div class="mt-2 pt-1.5 border-t border-stone-800 text-[10px] text-emerald-300">1 ───&lt; N dari ${escapeHtml(m1)} &amp; ${escapeHtml(m2)}</div>
       </div>
       <div class="p-3 rounded-xl bg-stone-900 border border-stone-700 flex flex-col justify-between">
         <div>
-          <div class="font-bold text-brand-300 border-b border-stone-800 pb-1 mb-1.5">TABEL: pasien (1)</div>
+          <div class="font-bold text-brand-300 border-b border-stone-800 pb-1 mb-1.5">TABEL: ${escapeHtml(m2)} (1)</div>
           <div class="text-[11px] text-amber-300">PK: ${escapeHtml(pPk)}</div>
-          <div class="text-[11px] text-stone-300">nama_pasien VARCHAR(100)</div>
-          <div class="text-[11px] text-stone-300">tgl_lahir ${escapeHtml(pDate)}</div>
+          <div class="text-[11px] text-stone-300">Tipe: ${escapeHtml(pDate)}</div>
         </div>
         <div class="mt-2 pt-1.5 border-t border-stone-800 text-[10px] text-stone-400">Tabel Master Sisi 1</div>
       </div>
@@ -557,6 +466,10 @@ function syncVisualDesignToEditor() {
   const q = CASE_STUDY_QUESTIONS.find(item => item.id === appState.activeQuestionId);
   const editor = document.getElementById('sqlEditorTextarea');
   if (!q || !editor) return;
+  const cs = getActiveCaseStudy();
+  const m1 = cs ? cs.master1Name : 'dokter';
+  const m2 = cs ? cs.master2Name : 'pasien';
+  const rel = cs ? cs.relName : 'kunjungan';
 
   if (q.type === 'DESIGN_ERD') {
     editor.value = [
@@ -570,9 +483,9 @@ function syncVisualDesignToEditor() {
   } else if (q.type === 'DESIGN_TRD') {
     editor.value = [
       '-- RINGKASAN TRANSFORMASI TRD MAHASISWA:',
-      `-- Tabel dokter    : PK(${trdDesignState.dokterPk || '?'}), FK(${trdDesignState.dokterFk || '?'})`,
-      `-- Tabel kunjungan : PK(${trdDesignState.kunjunganPk || '?'}), FK1(${trdDesignState.kunjunganFk1 || '?'}), FK2(${trdDesignState.kunjunganFk2 || '?'})`,
-      `-- Tabel pasien    : PK(${trdDesignState.pasienPk || '?'}), tgl_lahir(${trdDesignState.pasienDateType || '?'})`
+      `-- Tabel ${m1}    : PK(${trdDesignState.dokterPk || '?'}), FK(${trdDesignState.dokterFk || '?'})`,
+      `-- Tabel ${rel} : PK(${trdDesignState.kunjunganPk || '?'}), FK1(${trdDesignState.kunjunganFk1 || '?'}), FK2(${trdDesignState.kunjunganFk2 || '?'})`,
+      `-- Tabel ${m2}    : PK(${trdDesignState.pasienPk || '?'}), Kolom(${trdDesignState.pasienDateType || '?'})`
     ].join('\n');
     saveCurrentEditorDraft();
   }
@@ -691,25 +604,112 @@ function clearSlot(slotEl, isErd) {
 }
 
 function ensurePrerequisiteStateForQuestion(questionId) {
+  const cs = getActiveCaseStudy();
+  if (!cs) return;
+  const m1 = cs.master1Name;
+  const m2 = cs.master2Name;
+  const rel = cs.relName;
+  const db = cs.dbName;
+
   if (questionId >= 4) {
-    if (!jsCatalog.databases.includes('db_klinik_kampus')) { jsCatalog.databases.push('db_klinik_kampus'); }
-    currentDatabaseName = 'db_klinik_kampus';
-    jsCatalog.activeDb = 'db_klinik_kampus';
-    if (!doesTableExist('dokter')) { runRealSqlQuery('CREATE TABLE dokter (id_dokter INT PRIMARY KEY, nama_dokter VARCHAR(100), spesialis VARCHAR(50));'); }
-    if (!doesTableExist('pasien')) { runRealSqlQuery('CREATE TABLE pasien (id_pasien INT PRIMARY KEY, nama_pasien VARCHAR(100), tgl_lahir DATE);'); }
-    if (!doesTableExist('kunjungan')) { runRealSqlQuery('CREATE TABLE kunjungan (id_kunjungan INT PRIMARY KEY, id_pasien INT, id_dokter INT, tgl_kunjungan DATE, diagnosa VARCHAR(150));'); }
+    if (!jsCatalog.databases.includes(db)) { jsCatalog.databases.push(db); }
+    currentDatabaseName = `${db}.sqlite`;
+    jsCatalog.activeDb = `${db}.sqlite`;
+
+    if (!doesTableExist(m1)) {
+      if (m1 === 'dokter') runRealSqlQuery('CREATE TABLE dokter (id_dokter INT PRIMARY KEY, nama_dokter VARCHAR(100), spesialis VARCHAR(50));');
+      else if (m1 === 'anggota') runRealSqlQuery('CREATE TABLE anggota (id_anggota INT PRIMARY KEY, nama_anggota VARCHAR(100), jurusan VARCHAR(50));');
+      else if (m1 === 'pelanggan') runRealSqlQuery('CREATE TABLE pelanggan (id_pelanggan INT PRIMARY KEY, nama_pelanggan VARCHAR(100), alamat VARCHAR(150));');
+    }
+    if (!doesTableExist(m2)) {
+      if (m2 === 'pasien') runRealSqlQuery('CREATE TABLE pasien (id_pasien INT PRIMARY KEY, nama_pasien VARCHAR(100), tgl_lahir DATE);');
+      else if (m2 === 'buku') runRealSqlQuery('CREATE TABLE buku (id_buku INT PRIMARY KEY, judul_buku VARCHAR(150), penulis VARCHAR(100));');
+      else if (m2 === 'mobil') runRealSqlQuery('CREATE TABLE mobil (id_mobil INT PRIMARY KEY, merk_mobil VARCHAR(50), no_plat VARCHAR(20));');
+    }
+    if (!doesTableExist(rel)) {
+      if (rel === 'kunjungan') runRealSqlQuery('CREATE TABLE kunjungan (id_kunjungan INT PRIMARY KEY, id_pasien INT, id_dokter INT, tgl_kunjungan DATE, diagnosa VARCHAR(150));');
+      else if (rel === 'peminjaman') runRealSqlQuery('CREATE TABLE peminjaman (id_peminjaman INT PRIMARY KEY, id_anggota INT, id_buku INT, tgl_pinjam DATE, status_pinjam VARCHAR(30));');
+      else if (rel === 'rental') runRealSqlQuery('CREATE TABLE rental (id_rental INT PRIMARY KEY, id_pelanggan INT, id_mobil INT, tgl_rental DATE, biaya_harian INT);');
+    }
   }
   if (questionId >= 5) {
-    const pasienCols = getTableColumns('pasien').map(c => c.name.toLowerCase());
-    if (!pasienCols.includes('no_telepon')) { runRealSqlQuery('ALTER TABLE pasien ADD COLUMN no_telepon VARCHAR(20);'); }
+    const targetTable = cs.alterTable;
+    const colName = cs.alterColumn;
+    const cols = getTableColumns(targetTable).map(c => c.name.toLowerCase());
+    if (!cols.includes(colName.toLowerCase())) {
+      runRealSqlQuery(`ALTER TABLE ${targetTable} ADD COLUMN ${colName} VARCHAR(20);`);
+    }
   }
   if (questionId === 6) {
-    const pRows = getTableRows('pasien');
-    if (pRows.length === 0) {
-      runRealSqlQuery("INSERT INTO pasien VALUES (101, 'Raka Pratama', '2004-05-12', '081234567801');");
-      runRealSqlQuery("INSERT INTO pasien VALUES (102, 'Nadia Putri', '2005-08-21', '081234567802');");
-      runRealSqlQuery("INSERT INTO pasien VALUES (103, 'Budi Santoso', '2004-11-03', '081234567803');");
+    const targetTable = cs.alterTable;
+    const rows = getTableRows(targetTable);
+    if (rows.length === 0) {
+      if (cs.seedRecords && cs.seedRecords.master2) {
+        cs.seedRecords.master2.forEach(sql => runRealSqlQuery(sql));
+      }
     }
+  }
+}
+
+function renderDynamicPalettes() {
+  const cs = getActiveCaseStudy();
+  if (!cs) return;
+
+  const erdContainer = document.getElementById('erdPaletteContainer');
+  if (erdContainer && cs.erdPalette) {
+    let html = '';
+    // Entities
+    cs.erdPalette.entities.forEach(item => {
+      html += `<div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-brand-500/50 text-brand-300 font-mono-code text-xs font-bold shadow-sm" data-type="entity" data-val="${escapeHtml(item.val)}">${escapeHtml(item.label)}</div>`;
+    });
+    html += '<div class="h-6 w-px bg-stone-800 my-auto hidden sm:block"></div>';
+    // PKs
+    cs.erdPalette.pk.forEach(item => {
+      html += `<div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-amber-500/40 text-amber-300 font-mono-code text-xs" data-type="pk" data-val="${escapeHtml(item.val)}">${escapeHtml(item.label)}</div>`;
+    });
+    html += '<div class="h-6 w-px bg-stone-800 my-auto hidden sm:block"></div>';
+    // Attrs
+    cs.erdPalette.attrs.forEach(item => {
+      html += `<div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-stone-700 hover:border-stone-500 text-stone-200 font-mono-code text-xs" data-type="attr" data-val="${escapeHtml(item.val)}">${escapeHtml(item.label)}</div>`;
+    });
+    html += '<div class="h-6 w-px bg-stone-800 my-auto hidden sm:block"></div>';
+    // Cardinalities
+    cs.erdPalette.cardinalities.forEach(item => {
+      html += `<div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-amber-300 font-mono-code text-xs font-bold" data-type="cardinality" data-val="${escapeHtml(item.val)}">${escapeHtml(item.label)}</div>`;
+    });
+    erdContainer.innerHTML = html;
+  }
+
+  const trdContainer = document.getElementById('trdPaletteContainer');
+  if (trdContainer && cs.trdPalette) {
+    let html = '';
+    // PKs
+    cs.trdPalette.pk.forEach(item => {
+      html += `<div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-amber-500/40 text-amber-300 font-mono-code text-xs" data-type="trd-pk" data-val="${escapeHtml(item.val)}">${escapeHtml(item.label)}</div>`;
+    });
+    html += '<div class="h-6 w-px bg-stone-800 my-auto hidden sm:block"></div>';
+    // FKs
+    cs.trdPalette.fk.forEach(item => {
+      html += `<div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-emerald-500/40 text-emerald-300 font-mono-code text-xs font-bold" data-type="trd-fk" data-val="${escapeHtml(item.val)}">${escapeHtml(item.label)}</div>`;
+    });
+    html += '<div class="h-6 w-px bg-stone-800 my-auto hidden sm:block"></div>';
+    // Types
+    cs.trdPalette.types.forEach(item => {
+      html += `<div draggable="true" class="drag-chip px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-stone-700 text-amber-300 font-mono-code text-xs font-bold" data-type="trd-type" data-val="${escapeHtml(item.val)}">${escapeHtml(item.label)}</div>`;
+    });
+    trdContainer.innerHTML = html;
+  }
+
+  // Update TRD builder box headings
+  const trdBox1 = document.querySelector('#trdBuilderPanel .grid > div:nth-child(1) .text-xs span:first-child');
+  if (trdBox1) trdBox1.textContent = `Tabel #1: ${cs.master1Name}`;
+  const trdBox2 = document.querySelector('#trdBuilderPanel .grid > div:nth-child(2) .text-xs span:first-child');
+  if (trdBox2) trdBox2.textContent = `Tabel #2: ${cs.relName}`;
+  const trdBox3 = document.querySelector('#trdBuilderPanel .grid > div:nth-child(3) .text-xs span:first-child');
+  if (trdBox3) trdBox3.textContent = `Tabel #3: ${cs.master2Name}`;
+
+  if (typeof bindDragAndDropChips === 'function') {
+    bindDragAndDropChips();
   }
 }
 
@@ -1246,7 +1246,7 @@ let isInternalDownloadActive = false;
 
 function initDefaultSubmissions() {
   CASE_STUDY_QUESTIONS.forEach(q => {
-    if (!appState.submissions[q.id]) {
+    if (!appState.submissions[q.id] || (appState.submissions[q.id].query && (appState.submissions[q.id].query.includes('PRAGMA foreign_keys') || appState.submissions[q.id].query.includes('dr. Andi Wijaya')))) {
       appState.submissions[q.id] = { query: q.starterQuery, solved: false, pointsEarned: 0, attempts: 0 };
     }
   });
@@ -1267,6 +1267,7 @@ function loadStateFromStorage() {
     const parsed = JSON.parse(raw);
     if (parsed && parsed.student && parsed.student.nama && parsed.student.nrp) {
       appState = parsed;
+      syncCaseStudyData();
       if (appState.erdDesignState) {
         erdDesignState = { ...erdDesignState, ...appState.erdDesignState };
       }
@@ -1421,26 +1422,50 @@ function renderSchemaExplorer() {
   const container = document.getElementById('schemaTablesList');
   if (!container) return;
   container.innerHTML = '';
+
+  const cs = getActiveCaseStudy();
+  const m1 = cs ? cs.master1Name : 'dokter';
+  const m2 = cs ? cs.master2Name : 'pasien';
+  const rel = cs ? cs.relName : 'kunjungan';
+  const m1Up = m1.toUpperCase();
+  const m2Up = m2.toUpperCase();
+
   const erdCard = document.createElement('div');
   erdCard.className = 'p-3.5 rounded-xl bg-gradient-to-br from-brand-950/60 via-stone-950 to-stone-950 border border-brand-500/30 space-y-2.5';
   erdCard.innerHTML = `
     <div class="flex items-center justify-between">
       <span class="text-[11px] font-bold uppercase tracking-wider text-brand-300">1. Diagram Konseptual (ERD)</span>
-      <span class="text-[10px] px-2 py-0.5 rounded bg-brand-500/20 text-brand-300">Relasi M:N &rarr; 1:N</span>
+      <span class="text-[10px] px-2 py-0.5 rounded bg-brand-500/20 text-brand-300">Relasi 1:N</span>
     </div>
     <div class="grid grid-cols-3 items-center gap-1.5 text-center font-mono-code text-[11px] py-2">
-      <div class="p-2 rounded-lg bg-stone-900 border border-brand-400/40 text-white font-semibold">[DOKTER]<div class="text-[10px] text-stone-400 font-normal mt-0.5">1 (One)</div></div>
+      <div class="p-2 rounded-lg bg-stone-900 border border-brand-400/40 text-white font-semibold">[${m1Up}]<div class="text-[10px] text-stone-400 font-normal mt-0.5">1 (One)</div></div>
       <div class="flex flex-col items-center justify-center">
-        <div class="px-2 py-1 rounded bg-amber-500/20 border border-amber-400/50 text-amber-300 text-[10px] font-bold">&lt; memeriksa &gt;</div>
-        <span class="text-[10px] text-stone-400 mt-1">&darr; TRD: Tabel kunjungan</span>
+        <div class="px-2 py-1 rounded bg-amber-500/20 border border-amber-400/50 text-amber-300 text-[10px] font-bold">&lt; ${escapeHtml(cs ? cs.erdExpected.entRelName.toLowerCase() : 'transaksi')} &gt;</div>
+        <span class="text-[10px] text-stone-400 mt-1">&darr; TRD: Tabel ${rel}</span>
       </div>
-      <div class="p-2 rounded-lg bg-stone-900 border border-brand-400/40 text-white font-semibold">[PASIEN]<div class="text-[10px] text-stone-400 font-normal mt-0.5">1 (One)</div></div>
+      <div class="p-2 rounded-lg bg-stone-900 border border-brand-400/40 text-white font-semibold">[${m2Up}]<div class="text-[10px] text-stone-400 font-normal mt-0.5">1 (One)</div></div>
     </div>
     <div class="text-[11px] text-stone-300 leading-relaxed border-t border-stone-800/80 pt-2">
-      <strong>Transformasi TRD:</strong> Karena 1 Dokter memeriksa banyak Kunjungan (<code class="text-amber-300">1:N</code>) dan 1 Pasien memiliki banyak Kunjungan (<code class="text-amber-300">1:N</code>), maka <code class="text-amber-300">id_dokter</code> dan <code class="text-amber-300">id_pasien</code> turun menjadi <strong>Foreign Key (FK)</strong> di tabel <code class="text-brand-300">kunjungan</code>.
+      <strong>Transformasi TRD:</strong> Tabel <code class="text-amber-300">${m1}</code> dan <code class="text-amber-300">${m2}</code> berada di sisi 1, sedangkan Foreign Key turun ke tabel transaksi <code class="text-brand-300">${rel}</code> (sisi N).
     </div>
   `;
   container.appendChild(erdCard);
+
+  const sel = document.getElementById('selectPreviewTable');
+  if (sel) {
+    const curVal = sel.value;
+    sel.innerHTML = `
+      <option value="${m1}">${m1} (TRD Master)</option>
+      <option value="${m2}">${m2} (TRD Master)</option>
+      <option value="${rel}">${rel} (TRD Transaksi)</option>
+      <option value="peserta_asesmen" class="dosen-only-feature">peserta_asesmen (Sistem DB)</option>
+      <option value="riwayat_jawaban" class="dosen-only-feature">riwayat_jawaban (Sistem DB)</option>
+      <option value="log_aktivitas" class="dosen-only-feature">log_aktivitas (Sistem DB)</option>
+    `;
+    if ([m1, m2, rel, 'peserta_asesmen', 'riwayat_jawaban', 'log_aktivitas'].includes(curVal)) {
+      sel.value = curVal;
+    }
+  }
 
   SCHEMA_METADATA.forEach(meta => {
     const existsNow = doesTableExist(meta.table);
@@ -1542,12 +1567,14 @@ function renderActiveQuestion() {
   const phaseBadge = document.getElementById('designBuilderPhaseBadge');
   const builderTitle = document.getElementById('designBuilderTitle');
 
+  const cs = getActiveCaseStudy();
+
   if (q.type === 'DESIGN_ERD') {
     builderCard.classList.remove('hidden');
     erdPanel.classList.remove('hidden');
     trdPanel.classList.add('hidden');
     phaseBadge.textContent = 'Tahap 1 — Perancangan Konseptual (ERD)';
-    builderTitle.textContent = 'Susun Entitas, Atribut Key, dan Kardinalitas ERD Klinik SehatKampus';
+    builderTitle.textContent = `Susun Entitas, Atribut Key, dan Kardinalitas ERD ${cs ? cs.caseTitle : ''}`;
     syncErdSlotsFromState();
     renderLiveErdCanvas();
   } else if (q.type === 'DESIGN_TRD') {
@@ -1563,7 +1590,13 @@ function renderActiveQuestion() {
   }
 
   const editor = document.getElementById('sqlEditorTextarea');
-  editor.value = sub ? sub.query : q.starterQuery;
+  let currentVal = (sub && sub.query !== undefined) ? sub.query : q.starterQuery;
+  // If stored query contains old answers from previous versions, sanitize it to blank comment prompt
+  if (currentVal && (currentVal.includes('dr. Andi Wijaya') || currentVal.includes('PRAGMA foreign_keys = ON;') || currentVal.includes('CREATE TABLE dokter (') || currentVal.includes('DELETE FROM pasien\nWHERE id_pasien = 103;'))) {
+    currentVal = q.starterQuery;
+    if (sub) sub.query = q.starterQuery;
+  }
+  editor.value = currentVal;
 
   const statusEl = document.getElementById('lastSavedStatus');
   if (sub && sub.solved) {
@@ -1696,88 +1729,110 @@ function handleVerifyAndSubmitAnswer() {
 }
 
 function verifyQuestionSubmission(q, userSql) {
+  const cs = getActiveCaseStudy();
+  const m1 = cs ? cs.master1Name : 'dokter';
+  const m2 = cs ? cs.master2Name : 'pasien';
+  const rel = cs ? cs.relName : 'kunjungan';
+  const db = cs ? cs.dbName : 'klinik_sehatkampus';
+
   if (q.type === 'DESIGN_ERD') {
+    const exp = cs ? cs.erdExpected : { ent1Name: 'DOKTER', ent1Pk: 'id_dokter', ent1Attrs: 'nama_dokter, spesialis', entRelName: 'KUNJUNGAN', entRelAttrs: 'id_kunjungan (PK), tgl_kunjungan, diagnosa', cardinality: '1:N', ent2Name: 'PASIEN', ent2Pk: 'id_pasien', ent2Attrs: 'nama_pasien, tgl_lahir' };
     const previewCols = ['Entitas_ERD', 'Identifier_PK', 'Atribut_Deskriptif', 'Kardinalitas'];
     const previewRows = [
       [erdDesignState.ent1Name||'-', erdDesignState.ent1Pk||'-', erdDesignState.ent1Attrs||'-', erdDesignState.cardinality||'-'],
-      [erdDesignState.entRelName||'-', 'id_kunjungan', erdDesignState.entRelAttrs||'-', erdDesignState.cardinality||'-'],
+      [erdDesignState.entRelName||'-', exp.entRelPk || 'id', erdDesignState.entRelAttrs||'-', erdDesignState.cardinality||'-'],
       [erdDesignState.ent2Name||'-', erdDesignState.ent2Pk||'-', erdDesignState.ent2Attrs||'-', erdDesignState.cardinality||'-']
     ];
-    if (erdDesignState.ent1Name !== 'DOKTER') return { passed: false, reason: 'Entitas Master #1 belum tepat. Pilih entitas DOKTER sesuai narasi Klinik SehatKampus.', previewCols, previewRows };
-    if (erdDesignState.ent1Pk !== 'id_dokter' || erdDesignState.ent1Attrs !== 'nama_dokter, spesialis') return { passed: false, reason: 'Key Atribut atau Atribut Deskriptif pada entitas DOKTER belum tepat (gunakan id_dokter sebagai Key Atribut, serta nama_dokter, spesialis).', previewCols, previewRows };
-    if (erdDesignState.entRelName !== 'KUNJUNGAN' || !erdDesignState.entRelAttrs.includes('id_kunjungan')) return { passed: false, reason: 'Entitas Transaksi Pemeriksaan harus bernama KUNJUNGAN dengan atribut id_kunjungan (PK), tgl_kunjungan, diagnosa.', previewCols, previewRows };
-    if (erdDesignState.cardinality !== '1:N') return { passed: false, reason: 'Derajat kardinalitas belum tepat. Satu Dokter/Pasien dapat memiliki banyak Kunjungan (1 : N).', previewCols, previewRows };
-    if (erdDesignState.ent2Name !== 'PASIEN' || erdDesignState.ent2Pk !== 'id_pasien' || erdDesignState.ent2Attrs !== 'nama_pasien, tgl_lahir') return { passed: false, reason: 'Entitas Master #2 harus PASIEN dengan Key Atribut id_pasien dan atribut nama_pasien, tgl_lahir.', previewCols, previewRows };
-    return { passed: true, reason: 'Rancangan ERD sempurna! Ketiga entitas (DOKTER, KUNJUNGAN, PASIEN), Key Atribut, dan kardinalitas 1:N telah sesuai.', previewCols, previewRows };
+    if (erdDesignState.ent1Name !== exp.ent1Name) return { passed: false, reason: `Entitas Master #1 belum tepat. Pilih entitas ${exp.ent1Name} sesuai narasi kasus ${cs.caseTitle}.`, previewCols, previewRows };
+    if (erdDesignState.ent1Pk !== exp.ent1Pk || erdDesignState.ent1Attrs !== exp.ent1Attrs) return { passed: false, reason: `Key Atribut atau Atribut Deskriptif pada entitas ${exp.ent1Name} belum tepat (gunakan ${exp.ent1Pk} sebagai Key Atribut, serta ${exp.ent1Attrs}).`, previewCols, previewRows };
+    if (erdDesignState.entRelName !== exp.entRelName || !erdDesignState.entRelAttrs.includes(exp.entRelAttrs.split(',')[0].trim())) return { passed: false, reason: `Entitas Transaksi harus bernama ${exp.entRelName} dengan atribut ${exp.entRelAttrs}.`, previewCols, previewRows };
+    if (erdDesignState.cardinality !== exp.cardinality) return { passed: false, reason: `Derajat kardinalitas belum tepat. Harus ${exp.cardinality}.`, previewCols, previewRows };
+    if (erdDesignState.ent2Name !== exp.ent2Name || erdDesignState.ent2Pk !== exp.ent2Pk || erdDesignState.ent2Attrs !== exp.ent2Attrs) return { passed: false, reason: `Entitas Master #2 harus ${exp.ent2Name} dengan Key Atribut ${exp.ent2Pk} dan atribut ${exp.ent2Attrs}.`, previewCols, previewRows };
+    return { passed: true, reason: `Rancangan ERD sempurna! Ketiga entitas (${exp.ent1Name}, ${exp.entRelName}, ${exp.ent2Name}), Key Atribut, dan kardinalitas ${exp.cardinality} telah sesuai.`, previewCols, previewRows };
   }
 
   if (q.type === 'DESIGN_TRD') {
+    const exp = cs ? cs.trdExpected : { t1Pk: 'id_dokter INT PRIMARY KEY', t1Fk: 'NONE', t2Pk: 'id_kunjungan INT PRIMARY KEY', t2Fk1: 'id_dokter -> dokter(id_dokter)', t2Fk2: 'id_pasien -> pasien(id_pasien)', t3Pk: 'id_pasien INT PRIMARY KEY', t3DateType: 'DATE' };
     const previewCols = ['Nama_Tabel_TRD', 'Primary_Key', 'Foreign_Key_Relasi'];
     const previewRows = [
-      ['dokter', trdDesignState.dokterPk||'-', trdDesignState.dokterFk||'-'],
-      ['kunjungan', trdDesignState.kunjunganPk||'-', `${trdDesignState.kunjunganFk1||'-'} & ${trdDesignState.kunjunganFk2||'-'}`],
-      ['pasien', trdDesignState.pasienPk||'-', `Tanpa FK (tgl_lahir: ${trdDesignState.pasienDateType||'-'})`]
+      [m1, trdDesignState.dokterPk||'-', trdDesignState.dokterFk||'-'],
+      [rel, trdDesignState.kunjunganPk||'-', `${trdDesignState.kunjunganFk1||'-'} & ${trdDesignState.kunjunganFk2||'-'}`],
+      [m2, trdDesignState.pasienPk||'-', `Tanpa FK (tipe: ${trdDesignState.pasienDateType||'-'})`]
     ];
-    if (trdDesignState.dokterPk !== 'id_dokter INT PRIMARY KEY' || trdDesignState.dokterFk !== 'NONE') return { passed: false, reason: 'Pada TRD, tabel dokter memiliki PK id_dokter (INT) dan TIDAK menyimpan Foreign Key karena berada di sisi 1.', previewCols, previewRows };
-    if (trdDesignState.kunjunganPk !== 'id_kunjungan INT PRIMARY KEY') return { passed: false, reason: 'Primary Key untuk tabel kunjungan harus id_kunjungan (INT - PK).', previewCols, previewRows };
-    if (trdDesignState.kunjunganFk1 !== 'id_dokter -> dokter(id_dokter)' || trdDesignState.kunjunganFk2 !== 'id_pasien -> pasien(id_pasien)') return { passed: false, reason: 'Tabel kunjungan (sisi N) wajib memiliki kedua Foreign Key: id_dokter (mengacu ke dokter.id_dokter) dan id_pasien (mengacu ke pasien.id_pasien).', previewCols, previewRows };
-    if (trdDesignState.pasienPk !== 'id_pasien INT PRIMARY KEY' || trdDesignState.pasienDateType !== 'DATE') return { passed: false, reason: 'Tabel pasien harus memiliki PK id_pasien (INT) dan kolom tgl_lahir bertipe DATE.', previewCols, previewRows };
-    return { passed: true, reason: 'Transformasi TRD berhasil! Seluruh Primary Key, tipe data, dan peletakan Foreign Key pada tabel kunjungan telah tepat. Sekarang lanjutkan membuat database & tabelnya di Soal #3!', previewCols, previewRows };
+    if (trdDesignState.dokterPk !== exp.t1Pk || trdDesignState.dokterFk !== exp.t1Fk) return { passed: false, reason: `Pada TRD, tabel ${m1} memiliki PK ${exp.t1Pk} dan TIDAK menyimpan Foreign Key (${exp.t1Fk}).`, previewCols, previewRows };
+    if (trdDesignState.kunjunganPk !== exp.t2Pk) return { passed: false, reason: `Primary Key untuk tabel ${rel} harus ${exp.t2Pk}.`, previewCols, previewRows };
+    if (trdDesignState.kunjunganFk1 !== exp.t2Fk1 || trdDesignState.kunjunganFk2 !== exp.t2Fk2) return { passed: false, reason: `Tabel ${rel} (sisi N) wajib memiliki kedua Foreign Key: ${exp.t2Fk1} dan ${exp.t2Fk2}.`, previewCols, previewRows };
+    if (trdDesignState.pasienPk !== exp.t3Pk || trdDesignState.pasienDateType !== exp.t3DateType) return { passed: false, reason: `Tabel ${m2} harus memiliki PK ${exp.t3Pk} dan kolom tipe ${exp.t3DateType}.`, previewCols, previewRows };
+    return { passed: true, reason: 'Transformasi TRD berhasil! Seluruh Primary Key, tipe data, dan peletakan Foreign Key telah tepat. Sekarang lanjutkan membuat database & tabelnya di Soal #3!', previewCols, previewRows };
   }
 
   const cleanSql = stripSqlComments(userSql);
 
   if (q.type === 'DDL_CREATE_DB_AND_TABLES') {
-    currentDatabaseName = 'klinik_sehatkampus.sqlite';
-    jsCatalog.activeDb = 'klinik_sehatkampus.sqlite';
-    if (!doesTableExist('dokter') || !doesTableExist('pasien') || !doesTableExist('kunjungan')) return { passed: false, reason: 'Pastikan ketiga tabel sesuai TRD (dokter, pasien, dan kunjungan) sudah dibuat di database SQLite menggunakan CREATE TABLE.' };
-    const dCols = getTableColumns('dokter').map(c => c.name.toLowerCase());
-    const pCols = getTableColumns('pasien').map(c => c.name.toLowerCase());
-    const kCols = getTableColumns('kunjungan').map(c => c.name.toLowerCase());
-    for (const col of ['id_dokter', 'nama_dokter', 'spesialis']) { if (!dCols.includes(col)) return { passed: false, reason: `Kolom '${col}' belum ditemukan pada tabel dokter.` }; }
-    for (const col of ['id_pasien', 'nama_pasien', 'tgl_lahir']) { if (!pCols.includes(col)) return { passed: false, reason: `Kolom '${col}' belum ditemukan pada tabel pasien.` }; }
-    for (const col of ['id_kunjungan', 'id_pasien', 'id_dokter', 'tgl_kunjungan', 'diagnosa']) { if (!kCols.includes(col)) return { passed: false, reason: `Kolom '${col}' belum ditemukan pada tabel kunjungan.` }; }
-    return { passed: true, reason: 'Database db_klinik_kampus serta ketiga tabel (dokter, pasien, kunjungan) berhasil dibuat secara nyata sesuai rancangan ERD & TRD Anda!' };
+    currentDatabaseName = `${db}.sqlite`;
+    jsCatalog.activeDb = `${db}.sqlite`;
+    if (!doesTableExist(m1) || !doesTableExist(m2) || !doesTableExist(rel)) return { passed: false, reason: `Pastikan ketiga tabel sesuai TRD (${m1}, ${m2}, dan ${rel}) sudah dibuat di database menggunakan CREATE TABLE.` };
+    const dCols = getTableColumns(m1).map(c => c.name.toLowerCase());
+    const pCols = getTableColumns(m2).map(c => c.name.toLowerCase());
+    const kCols = getTableColumns(rel).map(c => c.name.toLowerCase());
+
+    const expectedColsM1 = cs.schemaMetadata.find(s => s.table.toLowerCase() === m1.toLowerCase())?.columns.map(c => c.name.toLowerCase()) || [];
+    const expectedColsM2 = cs.schemaMetadata.find(s => s.table.toLowerCase() === m2.toLowerCase())?.columns.filter(c => !c.isAlterTarget).map(c => c.name.toLowerCase()) || [];
+    const expectedColsRel = cs.schemaMetadata.find(s => s.table.toLowerCase() === rel.toLowerCase())?.columns.map(c => c.name.toLowerCase()) || [];
+
+    for (const col of expectedColsM1) { if (!dCols.includes(col)) return { passed: false, reason: `Kolom '${col}' belum ditemukan pada tabel ${m1}.` }; }
+    for (const col of expectedColsM2) { if (!pCols.includes(col)) return { passed: false, reason: `Kolom '${col}' belum ditemukan pada tabel ${m2}.` }; }
+    for (const col of expectedColsRel) { if (!kCols.includes(col)) return { passed: false, reason: `Kolom '${col}' belum ditemukan pada tabel ${rel}.` }; }
+    return { passed: true, reason: `Database serta ketiga tabel (${m1}, ${m2}, ${rel}) berhasil dibuat secara nyata sesuai rancangan ERD & TRD Anda!` };
   }
 
   if (q.type === 'DDL_ALTER_TABLE') {
-    if (!/ALTER\s+TABLE\s+pasien\b/i.test(cleanSql)) return { passed: false, reason: 'Gunakan perintah ALTER TABLE pasien ADD ... untuk memodifikasi struktur tabel pasien.' };
-    const pCols = getTableColumns('pasien').map(c => c.name.toLowerCase());
-    if (!pCols.includes('no_telepon')) return { passed: false, reason: "Kolom 'no_telepon' belum ditemukan pada tabel pasien setelah perintah dijalankan." };
-    return { passed: true, reason: "Struktur tabel pasien berhasil diperbarui dengan penambahan kolom 'no_telepon' menggunakan ALTER TABLE!" };
+    const targetTable = cs.alterTable;
+    const colName = cs.alterColumn;
+    const regex = new RegExp(`ALTER\\s+TABLE\\s+${targetTable}\\b`, 'i');
+    if (!regex.test(cleanSql)) return { passed: false, reason: `Gunakan perintah ALTER TABLE ${targetTable} ADD ... untuk memodifikasi struktur tabel ${targetTable}.` };
+    const pCols = getTableColumns(targetTable).map(c => c.name.toLowerCase());
+    if (!pCols.includes(colName.toLowerCase())) return { passed: false, reason: `Kolom '${colName}' belum ditemukan pada tabel ${targetTable} setelah perintah dijalankan.` };
+    return { passed: true, reason: `Struktur tabel ${targetTable} berhasil diperbarui dengan penambahan kolom '${colName}' menggunakan ALTER TABLE!` };
   }
 
   if (q.type === 'DML_INSERT') {
     if (!/INSERT\s+INTO\b/i.test(cleanSql)) return { passed: false, reason: 'Gunakan perintah INSERT INTO untuk mengisi record ke dalam tabel.' };
-    runRealSqlQuery('DELETE FROM kunjungan; DELETE FROM pasien; DELETE FROM dokter;');
+    runRealSqlQuery(`DELETE FROM ${rel}; DELETE FROM ${m2}; DELETE FROM ${m1};`);
     runRealSqlQuery(cleanSql);
-    const dRows = getTableRows('dokter');
-    const pRows = getTableRows('pasien');
-    const kRows = getTableRows('kunjungan');
-    if (dRows.length < 2) return { passed: false, reason: `Tabel dokter baru berisi ${dRows.length} record (minimal 2 record dokter).` };
-    if (pRows.length < 3) return { passed: false, reason: `Tabel pasien baru berisi ${pRows.length} record (minimal 3 record pasien dengan id_pasien 101, 102, dan 103).` };
-    const has103 = pRows.some(r => Number(r[0]) === 103);
-    if (!has103) return { passed: false, reason: 'Pastikan salah satu record pasien yang di-insert memiliki id_pasien = 103 (untuk digunakan pada soal DELETE berikutnya).' };
-    if (kRows.length < 1) return { passed: false, reason: 'Tabel kunjungan masih kosong (minimal isi 1 record transaksi kunjungan).' };
-    return { passed: true, reason: `Berhasil mengisi ${dRows.length} record dokter, ${pRows.length} record pasien, dan ${kRows.length} record kunjungan ke dalam database!` };
+    const m1Rows = getTableRows(m1);
+    const m2Rows = getTableRows(m2);
+    const relRows = getTableRows(rel);
+    const targetId = cs.deleteTargetId;
+
+    if (m1Rows.length < 2) return { passed: false, reason: `Tabel ${m1} baru berisi ${m1Rows.length} record (minimal 2 record).` };
+    if (m2Rows.length < 3) return { passed: false, reason: `Tabel ${m2} baru berisi ${m2Rows.length} record (minimal 3 record, termasuk ID ${targetId}).` };
+    const hasTargetId = m2Rows.some(r => Number(r[0]) === targetId);
+    if (!hasTargetId) return { passed: false, reason: `Pastikan salah satu record ${m2} yang di-insert memiliki ID ${cs.deleteKeyCol} = ${targetId} (untuk digunakan pada soal DELETE berikutnya).` };
+    if (relRows.length < 1) return { passed: false, reason: `Tabel ${rel} masih kosong (minimal isi 1 record transaksi).` };
+    return { passed: true, reason: `Berhasil mengisi record ke tabel ${m1}, ${m2}, dan ${rel} ke dalam database!` };
   }
 
   if (q.type === 'DML_DELETE') {
-    if (!/DELETE\s+FROM\s+pasien\b/i.test(cleanSql)) return { passed: false, reason: 'Gunakan perintah DELETE FROM pasien WHERE ... untuk menghapus record pasien.' };
+    const targetTable = cs.alterTable;
+    const targetId = cs.deleteTargetId;
+    const idKey = cs.deleteKeyCol;
+    const regex = new RegExp(`DELETE\\s+FROM\\s+${targetTable}\\b`, 'i');
+    if (!regex.test(cleanSql)) return { passed: false, reason: `Gunakan perintah DELETE FROM ${targetTable} WHERE ... untuk menghapus record ${targetTable}.` };
     ensurePrerequisiteStateForQuestion(5);
-    runRealSqlQuery('DELETE FROM pasien;');
-    runRealSqlQuery("INSERT INTO pasien VALUES (101, 'Raka Pratama', '2004-05-12', '081234567801');");
-    runRealSqlQuery("INSERT INTO pasien VALUES (102, 'Nadia Putri', '2005-08-21', '081234567802');");
-    runRealSqlQuery("INSERT INTO pasien VALUES (103, 'Budi Santoso', '2004-11-03', '081234567803');");
+    runRealSqlQuery(`DELETE FROM ${targetTable};`);
+    if (cs.seedRecords && cs.seedRecords.master2) {
+      cs.seedRecords.master2.forEach(sql => runRealSqlQuery(sql));
+    }
     runRealSqlQuery(cleanSql);
-    const remainingRows = getTableRows('pasien');
-    const stillHas103 = remainingRows.some(r => Number(r[0]) === 103);
-    const stillHas101And102 = remainingRows.some(r => Number(r[0]) === 101) && remainingRows.some(r => Number(r[0]) === 102);
+    const remainingRows = getTableRows(targetTable);
+    const stillHasTarget = remainingRows.some(r => Number(r[0]) === targetId);
+    const remainingCount = remainingRows.length;
     const resultContainer = document.getElementById('queryResultContainer');
-    resultContainer.innerHTML = buildHtmlTable(getTableColumns('pasien').map(c => c.name), remainingRows);
-    if (stillHas103) return { passed: false, reason: 'Record pasien dengan id_pasien = 103 masih ada di dalam tabel pasien. Periksa kondisi WHERE id_pasien = 103.' };
-    if (!stillHas101And102) return { passed: false, reason: 'Hati-hati! Pasien lain (id_pasien 101 / 102) ikut terhapus. Pastikan menggunakan klausa WHERE id_pasien = 103.' };
-    return { passed: true, reason: 'Tepat sekali! Record pasien id_pasien = 103 berhasil dihapus tanpa menghapus data pasien lainnya.' };
+    resultContainer.innerHTML = buildHtmlTable(getTableColumns(targetTable).map(c => c.name), remainingRows);
+    if (stillHasTarget) return { passed: false, reason: `Record ${targetTable} dengan ${idKey} = ${targetId} masih ada di dalam tabel. Periksa kondisi WHERE ${idKey} = ${targetId}.` };
+    if (remainingCount < 2) return { passed: false, reason: `Hati-hati! Record ${targetTable} lain ikut terhapus. Pastikan hanya menghapus record dengan ${idKey} = ${targetId}.` };
+    return { passed: true, reason: `Tepat sekali! Record ${targetTable} ${idKey} = ${targetId} berhasil dihapus tanpa menghapus data lainnya.` };
   }
 
   return { passed: false, reason: 'Kriteria soal belum terpenuhi.' };
